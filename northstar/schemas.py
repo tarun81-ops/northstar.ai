@@ -2,7 +2,7 @@
 from datetime import date
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, StringConstraints
+from pydantic import BaseModel, Field, StringConstraints, field_validator
 
 Day = Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 DAYS: tuple[Day, ...] = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
@@ -43,3 +43,45 @@ class ProfileIn(BaseModel):
     )
     activities: list[Activity] = Field(default_factory=list, max_length=20)
     exams: list[Exam] = Field(default_factory=list, max_length=20)
+
+
+Category = Literal["academics", "technical", "communication", "creativity", "wellbeing", "interests", "research"]
+CATEGORIES: tuple[str, ...] = Category.__args__
+LongText = Annotated[str, StringConstraints(strip_whitespace=True, max_length=1000)]
+
+
+class GoalIn(BaseModel):
+    title: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=200)]
+    description: LongText = ""
+    category: Category
+    target_date: date
+
+    @field_validator("target_date")
+    @classmethod
+    def in_the_future(cls, v: date) -> date:
+        if v <= date.today():
+            raise ValueError("target date must be in the future")
+        return v
+
+
+class MilestoneDraft(BaseModel):
+    """What the Roadmap Agent produces. Counts and dates are checked in Python (services/goals.py)."""
+
+    title: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=200)]
+    description: LongText = ""
+    due_date: date
+    completion_criteria: Annotated[str, StringConstraints(strip_whitespace=True, min_length=5, max_length=1000)] = Field(
+        description="Something observable, e.g. 'scores 8/10 on a past-paper section' or 'robot follows a line for 2 m'"
+    )
+    category: Category
+
+
+class MilestoneList(BaseModel):
+    milestones: list[MilestoneDraft]
+
+
+class MilestoneIn(MilestoneDraft):
+    """A milestone the student edits/confirms. id=None means new."""
+
+    id: int | None = None
+    status: Literal["todo", "in_progress", "done"] = "todo"
