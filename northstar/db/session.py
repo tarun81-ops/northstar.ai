@@ -4,6 +4,7 @@ from pathlib import Path
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from northstar import config
 from northstar.db.models import Base
@@ -12,7 +13,12 @@ from northstar.db.models import Base
 def make_engine(url: str) -> Engine:
     if url.startswith("sqlite:///"):
         Path(url.removeprefix("sqlite:///")).parent.mkdir(parents=True, exist_ok=True)
-    engine = create_engine(url)
+    if url == "sqlite://":
+        # In-memory DB (tests): every connection would get its own empty database, and agents run
+        # tools on worker threads - so share one connection across threads.
+        engine = create_engine(url, poolclass=StaticPool, connect_args={"check_same_thread": False})
+    else:
+        engine = create_engine(url)
     if engine.dialect.name == "sqlite":
         # SQLite ignores foreign keys unless asked, per connection.
         event.listen(engine, "connect", lambda conn, _: conn.execute("PRAGMA foreign_keys=ON"))
