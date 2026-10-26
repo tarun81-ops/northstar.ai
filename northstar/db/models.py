@@ -6,7 +6,7 @@ so bad data from any code path - including an LLM tool call - is rejected.
 import datetime as dt
 from datetime import date, datetime, time
 
-from sqlalchemy import JSON, CheckConstraint, Enum, ForeignKey, String, Text, func
+from sqlalchemy import JSON, CheckConstraint, Enum, ForeignKey, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -208,3 +208,57 @@ class CuriosityExperiment(Base):
     energy_score: Mapped[int | None]
     confidence_score: Mapped[int | None]
     meaning_score: Mapped[int | None]
+
+
+# ---- Phase 10: research studio ----------------------------------------------------------
+
+RESEARCH_STEPS = ("question", "background", "hypothesis", "method", "data", "analysis", "artifact", "reflection")
+
+
+class ResearchProject(Base):
+    __tablename__ = "research_projects"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey("students.id", ondelete="CASCADE"), index=True)
+    niche_id: Mapped[int | None] = mapped_column(ForeignKey("niche_suggestions.id", ondelete="SET NULL"))
+    title: Mapped[str] = mapped_column(String(200))
+    ethics: Mapped[dict] = mapped_column(JSON, default=dict)  # the method step's ethics checklist
+    artifact_type: Mapped[str | None] = mapped_column(String(40))
+    artifact_link: Mapped[str | None] = mapped_column(String(500))
+    status: Mapped[str] = mapped_column(choice("active", "done", "archived", name="project_status"), default="active")
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    steps: Mapped[list["ProjectStep"]] = relationship(cascade="all, delete-orphan", order_by="ProjectStep.order_index")
+    sources: Mapped[list["Source"]] = relationship(cascade="all, delete-orphan", order_by="Source.number")
+
+
+class ProjectStep(Base):
+    """One of the 8 research steps. Notes are the STUDENT's words; coach holds the Research Coach's last reply."""
+
+    __tablename__ = "project_steps"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("research_projects.id", ondelete="CASCADE"), index=True)
+    order_index: Mapped[int]
+    step: Mapped[str] = mapped_column(choice(*RESEARCH_STEPS, name="research_step"))
+    notes: Mapped[str] = mapped_column(Text, default="")
+    done: Mapped[bool] = mapped_column(default=False)
+    coach: Mapped[dict | None] = mapped_column(JSON)
+
+
+class Source(Base):
+    """The ONLY things a project may cite, as [S1], [S2]... The number is fixed when the source is added,
+    so removing a source never renumbers (and silently re-points) the others."""
+
+    __tablename__ = "sources"
+    __table_args__ = (UniqueConstraint("project_id", "number", name="source_number_unique"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("research_projects.id", ondelete="CASCADE"), index=True)
+    number: Mapped[int]
+    title: Mapped[str] = mapped_column(String(200))
+    url: Mapped[str] = mapped_column(String(500))
+    publisher: Mapped[str] = mapped_column(String(120), default="")
+    note: Mapped[str] = mapped_column(Text, default="")  # what it says / why it's useful, in the student's words
+    added_by: Mapped[str] = mapped_column(choice("student", "library", name="source_origin"))
+    opened: Mapped[bool] = mapped_column(default=False)  # the student confirms they actually opened it

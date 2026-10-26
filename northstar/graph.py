@@ -3,6 +3,7 @@
     START --route(intent)--+--> weekly_review --> END
                            +--> plan_week ------> END
                            +--> suggest_niches -> END
+                           +--> coach_step -----> END
 
 A StateGraph passes a `State` dict between nodes. The router is plain Python (the page says what it wants),
 so routing never costs an LLM call. Each node loads what it needs from the database, calls one agent,
@@ -17,6 +18,7 @@ from langgraph.graph import END, START, StateGraph
 
 from northstar.agents.niche_agent import suggest_niches
 from northstar.agents.progress_agent import write_review
+from northstar.agents.research_agent import coach_step
 from northstar.agents.schedule_agent import plan_week
 from northstar.db.session import get_session
 from northstar.schemas import MilestoneIn
@@ -25,10 +27,12 @@ from northstar.services.niches import refresh_signals, save_suggestions, suggest
 from northstar.services.patterns import detect
 from northstar.services.profile import get_profile
 from northstar.services.progress import week_summary
+from northstar.services.research import get_project, save_coach_reply
 from northstar.services.review import adjustments_for_week, save_review
 from northstar.services.tasks import busy_minutes, get_week_tasks
 
-Intent = Literal["weekly_review", "plan_week", "suggest_niches"]
+Intent = Literal["weekly_review", "plan_week", "suggest_niches", "coach_step"]
+NODES = ("weekly_review", "plan_week", "suggest_niches", "coach_step")
 
 
 class State(TypedDict, total=False):
@@ -36,6 +40,8 @@ class State(TypedDict, total=False):
     student_id: int
     week_start: date
     today: date
+    project_id: int  # coach_step
+    step_id: int     # coach_step
     result: Any
 
 
@@ -80,6 +86,21 @@ def suggest_niches_node(state: State) -> dict:
     return {"result": len(niches)}
 
 
+def coach_step_node(state: State) -> dict:
+    """The student's project + notes for one step -> the Research Coach's guidance (saved on the step)."""
+    sid = state["student_id"]
+    with get_session() as s:
+        profile = get_profile(s, sid)
+        project = get_project(s, sid, state["project_id"])
+        step = next((st for st in project.steps if st.id == state["step_id"]), None)
+    if step is None:
+        raise ValueError("That step isn't part of this project")
+    reply = coach_step(profile, project, step.step)
+    with get_session() as s:
+        save_coach_reply(s, sid, step.id, reply)
+    return {"result": reply}
+
+
 def route(state: State) -> Intent:
     return state["intent"]
 
@@ -88,12 +109,14 @@ builder = StateGraph(State)
 builder.add_node("weekly_review", weekly_review_node)
 builder.add_node("plan_week", plan_week_node)
 builder.add_node("suggest_niches", suggest_niches_node)
-builder.add_conditional_edges(START, route, ["weekly_review", "plan_week", "suggest_niches"])
-for node in ("weekly_review", "plan_week", "suggest_niches"):
+builder.add_node("coach_step", coach_step_node)
+builder.add_conditional_edges(START, route, list(NODES))
+for node in NODES:
     builder.add_edge(node, END)
 graph = builder.compile()
 
 
-def run(intent: Intent, student_id: int, week_start: date | None = None, today: date | None = None) -> Any:
+def run(intent: Intent, student_id: int, week_start: date | None = None, today: date | None = None, **inputs) -> Any:
+    """inputs: extra state for a node, e.g. project_id and step_id for coach_step."""
     return graph.invoke({"intent": intent, "student_id": student_id, "week_start": week_start,
-                         "today": today or date.today()})["result"]
+                         "today": today or date.today(), **inputs})["result"]

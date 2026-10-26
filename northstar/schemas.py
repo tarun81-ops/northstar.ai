@@ -166,6 +166,24 @@ class Reflection(BaseModel):
     notes: LongText = ""
 
 
+class SourceIn(BaseModel):
+    """A source the student adds themselves."""
+
+    title: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=200)]
+    url: AnyHttpUrl
+    publisher: Annotated[str, StringConstraints(strip_whitespace=True, max_length=120)] = ""
+    note: LongText = ""
+
+
+class CoachReply(BaseModel):
+    """The Research Coach's guidance for one step. It asks; it never does the work or invents sources."""
+
+    feedback: LongText = Field(description="1-3 sentences on the student's notes so far: what's good, what's missing")
+    questions: list[LongText] = Field(description="1-3 questions that help the student think the next part through")
+    next_action: LongText = Field(description="One small concrete thing to do next")
+    ethics_flags: list[LongText] = Field(default_factory=list, description="Any safety or ethics concerns, else empty")
+
+
 class MilestoneIn(MilestoneDraft):
     """A milestone the student edits/confirms. id=None means new."""
 
