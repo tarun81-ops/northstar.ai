@@ -17,6 +17,7 @@ from typing import Any, Literal, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
+from northstar.agents.dataset_agent import match_datasets
 from northstar.agents.niche_agent import suggest_niches
 from northstar.agents.opportunity_agent import match_opportunities
 from northstar.agents.progress_agent import write_review
@@ -25,6 +26,7 @@ from northstar.agents.schedule_agent import plan_week
 from northstar.db.session import get_session
 from northstar.schemas import MilestoneIn
 from northstar.services.goals import get_active_goal
+from northstar.services.kaggle_dataset_service import filter_and_rank_candidates, save_dataset_recommendations
 from northstar.services.niches import refresh_signals, save_suggestions, suggestions
 from northstar.services.opportunities import CANDIDATES, dismissed_keys, eligible, load_opportunities, rank, save_matches
 from northstar.services.patterns import detect
@@ -34,8 +36,8 @@ from northstar.services.research import get_project, save_coach_reply
 from northstar.services.review import adjustments_for_week, save_review
 from northstar.services.tasks import busy_minutes, get_week_tasks
 
-Intent = Literal["weekly_review", "plan_week", "suggest_niches", "coach_step", "match_opportunities"]
-NODES = ("weekly_review", "plan_week", "suggest_niches", "coach_step", "match_opportunities")
+Intent = Literal["weekly_review", "plan_week", "suggest_niches", "coach_step", "match_opportunities", "recommend_datasets"]
+NODES = ("weekly_review", "plan_week", "suggest_niches", "coach_step", "match_opportunities", "recommend_datasets")
 
 
 class State(TypedDict, total=False):
@@ -124,6 +126,31 @@ def match_opportunities_node(state: State) -> dict:
     return {"result": len(matches)}
 
 
+def recommend_datasets_node(state: State) -> dict:
+    """Pre-filtered & ranked catalog (Python) -> top 2-5 best fits with student-friendly reasons (LLM) -> saved."""
+    sid, pid = state["student_id"], state["project_id"]
+    with get_session() as s:
+        project = get_project(s, sid, pid)
+        ranked = filter_and_rank_candidates(s, sid, pid)
+        candidates = [d for d, _ in ranked]
+        if not candidates:
+            return {"result": 0}
+        question_step = next((st for st in project.steps if st.step == "question"), None)
+        question_notes = question_step.notes if question_step else ""
+        niche_name = ""
+        if project.niche_id:
+            from northstar.db.models import NicheSuggestion
+
+            niche = s.get(NicheSuggestion, project.niche_id)
+            if niche:
+                niche_name = f"{niche.niche_name}: {niche.description}"
+
+    matches = match_datasets(project.title, question_notes, niche_name, candidates)
+    with get_session() as s:
+        saved = save_dataset_recommendations(s, sid, pid, matches)
+    return {"result": len(saved)}
+
+
 def route(state: State) -> Intent:
     return state["intent"]
 
@@ -134,6 +161,7 @@ builder.add_node("plan_week", plan_week_node)
 builder.add_node("suggest_niches", suggest_niches_node)
 builder.add_node("coach_step", coach_step_node)
 builder.add_node("match_opportunities", match_opportunities_node)
+builder.add_node("recommend_datasets", recommend_datasets_node)
 builder.add_conditional_edges(START, route, list(NODES))
 for node in NODES:
     builder.add_edge(node, END)

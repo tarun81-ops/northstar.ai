@@ -29,6 +29,10 @@ Open http://localhost:8501.
 | `NORTHSTAR_MODEL` | `openai:gpt-6-luna` | `provider:model`. Also works with `google_genai:gemini-2.5-flash` or `anthropic:...` |
 | `OPENAI_API_KEY` / `GOOGLE_API_KEY` | `sk-...` | The key for the provider above |
 | `DATABASE_URL` | *(optional)* | Defaults to `data/northstar.db` (SQLite). Use a `postgresql+psycopg://...` URL for Postgres |
+| `KAGGLE_USERNAME` / `KAGGLE_KEY` | *(optional)* | Kaggle API credentials to import curated datasets in Research Studio |
+| `KAGGLE_MAX_DATASET_SIZE_MB` | `50.0` | *(optional)* Maximum size in MB allowed for a downloaded dataset |
+| `KAGGLE_STUDENT_STORAGE_CAP_MB` | `100.0` | *(optional)* Total disk quota in MB per student across project workspaces |
+| `DATASET_WORKSPACE_ROOT` | `data/workspaces` | *(optional)* Storage directory for imported datasets |
 
 Without an API key the app still runs: forms, plans, check-ins and reviews you already have all work, and the AI buttons explain what's missing.
 
@@ -46,7 +50,7 @@ Without an API key the app still runs: forms, plans, check-ins and reviews you a
 | **Weekly Review** | The week's numbers and detected patterns, a kind AI review, and up to 3 suggested changes to **Accept** or **Dismiss** |
 | **Explore** | Interest signals (profile, check-ins, your own words, past experiments) → 3–5 specific niches that cite them → a free 3–14 day curiosity experiment → a reflection that feeds back into your interests |
 | **Opportunities** | Competitions, programmes and courses from a curated list. Python checks age and deadlines; the AI explains the best fits; every fact (eligibility, deadline, cost, time) comes from the data. Save or dismiss; "Open official page" - never a register button |
-| **Research Studio** | A guided 8-step mini-project (question → background → hypothesis → ethical method → data → analysis → artifact → limitations). You write; the coach asks questions. Sources come from a curated library or your own links, cited as [S1], [S2]…; the downloadable report is built only from your notes |
+| **Research Studio** | A guided 8-step mini-project (question → background → hypothesis → ethical method → data → analysis → artifact → limitations). You write; the coach asks questions. In the **Data** section, discover curated Kaggle datasets, import them into your workspace, run deterministic pandas starter EDA, and attach them as evidence cited as `[S#]`. Sources also come from a curated library or your own links; the downloadable report is built only from your notes |
 
 ---
 
@@ -80,6 +84,7 @@ Streamlit pages
 | Coach a research step | **Research Coach**: one structured-output call (graph node `coach_step`) | Feedback + 1–3 questions + one next action. Python rejects links and citations of sources the project doesn't have. It never writes the student's work |
 | Match opportunities | `services/opportunities.py` + `data/opportunities.json`, then the **Opportunity Agent** (graph node `match_opportunities`) | Python filters by age, deadline and cost and ranks by interests; the AI only writes "why it fits" and never sees costs or deadlines. Location is never used - NorthStar doesn't store it |
 | Sources, citations, report | `services/research.py` + `data/sources.json` | No AI. Sources come only from the curated library or the student; numbers never change; the report removes citations that aren't stored sources and flags unknown links; the method step needs the ethics checklist |
+| Datasets & starter EDA | `services/kaggle_dataset_service.py` + `data/kaggle_catalog.json`, then the **Dataset Agent** (graph node `recommend_datasets`) | Python filters and ranks approved datasets; LLM selects top fits with match reasons; deterministic pandas templates run starter EDA (head, missing values, describe, counts). Enforces zip-slip/zip-bomb protection and storage quotas |
 
 ### Safety and privacy by design
 
@@ -87,6 +92,7 @@ Streamlit pages
 - **No guilt:** daily replies are rule-based and tested against guilt words; reviews are instructed to describe, not judge.
 - **Boundaries in every prompt** (`northstar/prompts/shared_safety.md`): no diagnosis, no medical/legal/financial advice, no graded work, no invented sources, no registering for anything.
 - **Privacy:** nicknames only; no location, contacts or browsing data; the nickname isn't sent to the LLM when planning or reviewing.
+- **Curated datasets only:** Students cannot pass free-text queries or arbitrary download URLs to the Kaggle API. Downloads are restricted to the curated catalog, verified for zip traversal (zip-slip) and zip bombs, size-capped, and analyzed using deterministic pandas templates instead of arbitrary AI code.
 
 ---
 
@@ -94,19 +100,21 @@ Streamlit pages
 
 ```
 app.py                     Home: today's checklist + dashboard + demo tools
-pages/                     Onboarding, Goal & Roadmap, This Week, Daily Check-in, Weekly Review
+pages/                     Onboarding, Goal & Roadmap, This Week, Daily Check-in, Weekly Review, Explore, Research, Opportunities
 northstar/
   config.py, llm.py        Settings; get_llm() and the API-key check
-  graph.py                 LangGraph orchestrator (weekly_review, plan_week)
-  agents/                  profile_agent, roadmap_agent, schedule_agent, progress_agent
+  graph.py                 LangGraph orchestrator (weekly_review, plan_week, recommend_datasets)
+  agents/                  profile_agent, roadmap_agent, schedule_agent, progress_agent, dataset_agent
   tools/profile_tools.py   The Profile Agent's tools
   prompts/                 shared_safety.md + one prompt per agent
-  services/                scheduler, patterns, progress, goals, review, tasks, profile (no LLM)
+  services/                scheduler, patterns, progress, goals, review, tasks, profile, kaggle_dataset_service (no LLM)
   db/                      models.py, session.py, seed.py (demo data)
   schemas.py               Pydantic schemas shared by forms, tools, agents and tests
 tests/                     pytest; no API key needed (agents are tested with a fake LLM)
-scratch/                   Phase 1 learning scripts
-PLAN.md                    The full development plan
+data/
+  kaggle_catalog.json      Curated, safe, age-appropriate tabular datasets
+  opportunities.json       Curated student opportunities
+  sources.json             Vetted research library
 ```
 
 ## Tests

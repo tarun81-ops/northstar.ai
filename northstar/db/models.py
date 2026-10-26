@@ -6,7 +6,7 @@ so bad data from any code path - including an LLM tool call - is rejected.
 import datetime as dt
 from datetime import date, datetime, time
 
-from sqlalchemy import JSON, CheckConstraint, Enum, ForeignKey, String, Text, UniqueConstraint, func
+from sqlalchemy import JSON, CheckConstraint, Enum, Float, ForeignKey, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -279,3 +279,88 @@ class Recommendation(Base):
     reason: Mapped[str] = mapped_column(Text)  # the AI's "why it matches", from the profile and the entry only
     status: Mapped[str] = mapped_column(choice("suggested", "saved", "dismissed", name="recommendation_status"), default="suggested")
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+# ---- Phase 12: Kaggle datasets for the research studio -----------------------------------
+
+class KaggleDataset(Base):
+    """An approved dataset. Students can only ever be offered or import rows from this table.
+    data/kaggle_catalog.json is the source of truth; the table is a synced copy."""
+
+    __tablename__ = "kaggle_datasets"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kaggle_ref: Mapped[str] = mapped_column(String(200), unique=True)  # "owner/dataset-name"
+    title: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str] = mapped_column(Text)
+    niche_tags: Mapped[list] = mapped_column(JSON, default=list)
+    file_type: Mapped[str] = mapped_column(String(20), default="csv")
+    size_mb: Mapped[float] = mapped_column(Float, default=0.0)
+    license: Mapped[str] = mapped_column(String(120), default="Unknown")
+    attribution_required: Mapped[bool] = mapped_column(default=False)
+    attribution_text: Mapped[str | None] = mapped_column(Text, default=None)
+    source_url: Mapped[str] = mapped_column(String(500))
+    usability_score: Mapped[float | None] = mapped_column(Float, default=None)
+    difficulty: Mapped[str] = mapped_column(choice("beginner", "intermediate", "advanced", name="dataset_difficulty"), default="beginner")
+    age_appropriate: Mapped[bool] = mapped_column(default=True)
+    is_approved: Mapped[bool] = mapped_column(default=True)
+    sample_questions: Mapped[list] = mapped_column(JSON, default=list)
+    limitations: Mapped[list] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    @property
+    def difficulty_level(self) -> str:
+        return self.difficulty
+
+    @property
+    def important_limitations(self) -> list:
+        return self.limitations
+
+
+class DatasetRecommendation(Base):
+    __tablename__ = "dataset_recommendations"
+    __table_args__ = (
+        UniqueConstraint("research_project_id", "kaggle_dataset_id", name="uq_rec_project_dataset"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey("students.id", ondelete="CASCADE"), index=True)
+    research_project_id: Mapped[int] = mapped_column(ForeignKey("research_projects.id", ondelete="CASCADE"), index=True)
+    kaggle_dataset_id: Mapped[int] = mapped_column(ForeignKey("kaggle_datasets.id", ondelete="CASCADE"), index=True)
+    match_reason: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(
+        choice("suggested", "chosen", "dismissed", name="dataset_rec_status"), default="suggested"
+    )
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    kaggle_dataset: Mapped["KaggleDataset"] = relationship()
+    research_project: Mapped["ResearchProject"] = relationship()
+    student: Mapped["Student"] = relationship()
+
+
+class ImportedDataset(Base):
+    """A dataset downloaded into one student's one project workspace."""
+
+    __tablename__ = "imported_datasets"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey("students.id", ondelete="CASCADE"), index=True)
+    research_project_id: Mapped[int] = mapped_column(ForeignKey("research_projects.id", ondelete="CASCADE"), index=True)
+    kaggle_dataset_id: Mapped[int] = mapped_column(ForeignKey("kaggle_datasets.id", ondelete="CASCADE"), index=True)
+    local_file_path: Mapped[str | None] = mapped_column(String(500), default=None)
+    original_file_name: Mapped[str | None] = mapped_column(String(200), default=None)
+    dtypes: Mapped[dict] = mapped_column(JSON, default=dict)
+    row_count: Mapped[int | None] = mapped_column(default=None)
+    column_count: Mapped[int | None] = mapped_column(default=None)
+    column_names: Mapped[list] = mapped_column(JSON, default=list)
+    size_bytes: Mapped[int | None] = mapped_column(default=None)
+    status: Mapped[str] = mapped_column(
+        choice("importing", "ready", "failed", name="dataset_import_status"), default="importing"
+    )
+    error_message: Mapped[str | None] = mapped_column(Text, default=None)
+    imported_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    kaggle_dataset: Mapped["KaggleDataset"] = relationship()
+    research_project: Mapped["ResearchProject"] = relationship()
+    student: Mapped["Student"] = relationship()
+

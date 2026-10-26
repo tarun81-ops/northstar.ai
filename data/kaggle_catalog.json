@@ -1,0 +1,205 @@
+{
+  "about": "Curated, age-appropriate, size-limited Kaggle datasets for student research projects.",
+  "datasets": [
+    {
+      "kaggle_ref": "spscientist/students-performance-in-exams",
+      "title": "Students Performance in Exams",
+      "description": "Marks secured by high school students in math, reading, and writing alongside study habits, test preparation courses, and demographic background.",
+      "niche_tags": ["academics", "education", "study-habits", "maths", "learning", "exams"],
+      "file_type": "csv",
+      "size_mb": 0.02,
+      "license": "CC0: Public Domain",
+      "attribution_required": false,
+      "attribution_text": null,
+      "source_url": "https://www.kaggle.com/datasets/spscientist/students-performance-in-exams",
+      "usability_score": 8.8,
+      "difficulty": "beginner",
+      "age_appropriate": true,
+      "is_approved": true,
+      "sample_questions": [
+        "How does completing a test preparation course correlate with math vs reading performance?",
+        "Is there a correlation between parental education level and student performance across subjects?"
+      ],
+      "limitations": [
+        "Sample size of 1,000 students from a single simulated group; results may not generalize.",
+        "Suggestion only: Correlation does not imply causation between background factors and exam scores.",
+        "Lacks longitudinal tracking across multiple academic terms."
+      ]
+    },
+    {
+      "kaggle_ref": "uom190346a/sleep-health-and-lifestyle-dataset",
+      "title": "Sleep Health and Lifestyle Dataset",
+      "description": "Sleep duration, sleep quality, physical activity levels, stress levels, and cardiovascular indicators across diverse routines and occupations.",
+      "niche_tags": ["health", "wellbeing", "sleep", "lifestyle", "habits", "biology"],
+      "file_type": "csv",
+      "size_mb": 0.03,
+      "license": "CC0: Public Domain",
+      "attribution_required": false,
+      "attribution_text": null,
+      "source_url": "https://www.kaggle.com/datasets/uom190346a/sleep-health-and-lifestyle-dataset",
+      "usability_score": 10.0,
+      "difficulty": "beginner",
+      "age_appropriate": true,
+      "is_approved": true,
+      "sample_questions": [
+        "What is the correlation between daily physical activity and reported sleep quality?",
+        "Does higher daily stress correlate with shorter sleep duration or disrupted sleep patterns?"
+      ],
+      "limitations": [
+        "Dataset is synthetic and modeled based on adult lifestyle surveys.",
+        "Suggestion only: Observed associations between sleep and stress do not prove a causal direction.",
+        "Adult occupations may not directly match middle/high school student schedules."
+      ]
+    },
+    {
+      "kaggle_ref": "adityakadiwal/water-potability",
+      "title": "Water Potability and Quality Metrics",
+      "description": "Water quality metrics including pH, hardness, solids (TDS), chloramines, sulfate, conductivity, organic carbon, and turbidity.",
+      "niche_tags": ["environment", "chemistry", "water", "ecology", "science", "climate"],
+      "file_type": "csv",
+      "size_mb": 0.25,
+      "license": "CC0: Public Domain",
+      "attribution_required": false,
+      "attribution_text": null,
+      "source_url": "https://www.kaggle.com/datasets/adityakadiwal/water-potability",
+      "usability_score": 9.4,
+      "difficulty": "intermediate",
+      "age_appropriate": true,
+      "is_approved": true,
+      "sample_questions": [
+        "How does water pH correlate with sulfate levels across sampled bodies of water?",
+        "Which chemical metrics show the highest variation between potable and non-potable samples?"
+      ],
+      "limitations": [
+        "Missing values exist in several chemical measurement columns (e.g. sulfate, pH).",
+        "Suggestion only: Water potability is multifaceted; single chemical thresholds do not guarantee safety.",
+        "Samples are from diverse unnamed water bodies without geographical coordinates."
+      ]
+    },
+    {
+      "kaggle_ref": "nelgiriyewithana/global-weather-repository",
+      "title": "Global Weather and Climate Observations",
+      "description": "Daily weather indicators across major world cities including temperature, humidity, wind speed, pressure, and air quality index.",
+      "niche_tags": ["climate", "weather", "environment", "physics", "geography"],
+      "file_type": "csv",
+      "size_mb": 0.45,
+      "license": "CC0: Public Domain",
+      "attribution_required": false,
+      "attribution_text": null,
+      "source_url": "https://www.kaggle.com/datasets/nelgiriyewithana/global-weather-repository",
+      "usability_score": 9.7,
+      "difficulty": "beginner",
+      "age_appropriate": true,
+      "is_approved": true,
+      "sample_questions": [
+        "How does humidity correlate with temperature across equatorial vs temperate cities?",
+        "What is the relationship between wind speed and air pressure drops?"
+      ],
+      "limitations": [
+        "Observations represent major metropolitan weather stations with potential urban heat island effects.",
+        "Suggestion only: Short-term weather correlations do not demonstrate long-term climate trends.",
+        "Air quality measurements use standard sensors that may vary across station providers."
+      ]
+    },
+    {
+      "kaggle_ref": "fedesoriano/electric-power-consumption",
+      "title": "Household Electric Power Consumption",
+      "description": "Measurements of electric power consumption in a household with a one-minute sampling rate, tracking voltage, global active power, and sub-metering.",
+      "niche_tags": ["energy", "electronics", "engineering", "robotics", "sustainability", "physics"],
+      "file_type": "csv",
+      "size_mb": 0.95,
+      "license": "CC BY 4.0",
+      "attribution_required": true,
+      "attribution_text": "Georges Hebrail, Alice Berard. Electric power consumption dataset, UCI Machine Learning Repository / Kaggle.",
+      "source_url": "https://www.kaggle.com/datasets/fedesoriano/electric-power-consumption",
+      "usability_score": 8.5,
+      "difficulty": "intermediate",
+      "age_appropriate": true,
+      "is_approved": true,
+      "sample_questions": [
+        "At what hours of the day does household power consumption reach peak intensity?",
+        "How does sub-metering for kitchen appliances compare to climate control energy use?"
+      ],
+      "limitations": [
+        "Data collected from a single household in France; patterns reflect specific regional habits.",
+        "Suggestion only: High usage intervals suggest usage spikes but do not detail individual appliance efficiency.",
+        "Sub-metering values are grouped rather than itemized per individual outlet."
+      ]
+    },
+    {
+      "kaggle_ref": "vincentcheung/crop-yield-prediction-dataset",
+      "title": "Crop Yield and Weather Factors",
+      "description": "Annual agricultural yields for major crops across various countries, matched with average temperature, rainfall, and pesticide usage.",
+      "niche_tags": ["agriculture", "biology", "environment", "food", "climate", "plants"],
+      "file_type": "csv",
+      "size_mb": 0.35,
+      "license": "CC0: Public Domain",
+      "attribution_required": false,
+      "attribution_text": null,
+      "source_url": "https://www.kaggle.com/datasets/vincentcheung/crop-yield-prediction-dataset",
+      "usability_score": 8.2,
+      "difficulty": "beginner",
+      "age_appropriate": true,
+      "is_approved": true,
+      "sample_questions": [
+        "How does average rainfall correlate with maize yield across different climate zones?",
+        "Is there an observable relationship between average temperature trends and wheat productivity?"
+      ],
+      "limitations": [
+        "National aggregate figures obscure regional soil quality and local irrigation infrastructure.",
+        "Suggestion only: Yield variations reflect complex socio-economic and technological inputs beyond rainfall.",
+        "Pesticide records are country-level averages rather than farm-specific applications."
+      ]
+    },
+    {
+      "kaggle_ref": "gpreda/roller-coasters-dataset",
+      "title": "Roller Coaster Physics and Mechanics",
+      "description": "Specifications of roller coasters worldwide including speed, height, drop, length, inversions, and material type (steel vs wood).",
+      "niche_tags": ["physics", "engineering", "motion", "mechanics", "robotics"],
+      "file_type": "csv",
+      "size_mb": 0.12,
+      "license": "CC0: Public Domain",
+      "attribution_required": false,
+      "attribution_text": null,
+      "source_url": "https://www.kaggle.com/datasets/gpreda/roller-coasters-dataset",
+      "usability_score": 9.1,
+      "difficulty": "beginner",
+      "age_appropriate": true,
+      "is_approved": true,
+      "sample_questions": [
+        "How closely does maximum speed correlate with total drop height according to gravitational potential energy models?",
+        "Do steel roller coasters exhibit significantly higher inversion counts than wooden roller coasters?"
+      ],
+      "limitations": [
+        "Historical entries may have missing speed or drop records.",
+        "Suggestion only: Theoretical physics models (v = sqrt(2gh)) assume zero friction, which real tracks possess.",
+        "Some coaster types use launch mechanisms rather than gravity-driven drops."
+      ]
+    },
+    {
+      "kaggle_ref": "datasnaek/chess",
+      "title": "Chess Game Mechanics and Openings",
+      "description": "Over 20,000 rated games from Lichess, recording turns, victory status, winner, opening moves, opening code, and player ratings.",
+      "niche_tags": ["gaming", "algorithms", "strategy", "computer science", "maths"],
+      "file_type": "csv",
+      "size_mb": 0.85,
+      "license": "CC0: Public Domain",
+      "attribution_required": false,
+      "attribution_text": null,
+      "source_url": "https://www.kaggle.com/datasets/datasnaek/chess",
+      "usability_score": 9.4,
+      "difficulty": "beginner",
+      "age_appropriate": true,
+      "is_approved": true,
+      "sample_questions": [
+        "Which opening moves have the highest white win rate among beginner vs intermediate players?",
+        "How does player rating difference correlate with game length in turns?"
+      ],
+      "limitations": [
+        "Data is collected exclusively from online blitz/rapid games on Lichess.",
+        "Suggestion only: Opening move win rates do not determine individual match outcomes.",
+        "Rating disparities in casual games may skew move quality statistics."
+      ]
+    }
+  ]
+}

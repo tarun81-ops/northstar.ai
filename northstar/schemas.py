@@ -222,3 +222,92 @@ class MilestoneIn(MilestoneDraft):
 
     id: int | None = None
     status: Literal["todo", "in_progress", "done"] = "todo"
+
+
+# ---- Phase 12: Kaggle datasets and starter EDA -------------------------------------------
+
+CORRELATION_REMINDER = (
+    "Suggestion only: Correlation does not imply causation. Patterns and relationships in this data "
+    "suggest questions to investigate, not proven causes."
+)
+
+
+class KaggleDatasetEntry(BaseModel):
+    """One curated entry in data/kaggle_catalog.json (validated on load)."""
+
+    kaggle_ref: Annotated[str, StringConstraints(strip_whitespace=True, pattern=r"^[a-zA-Z0-9\-_.]+/[a-zA-Z0-9\-_.]+$")]
+    title: Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=200)]
+    description: str
+    niche_tags: list[str] = Field(default_factory=list)
+    file_type: str = "csv"
+    size_mb: float = Field(ge=0.0)
+    license: str
+    attribution_required: bool = False
+    attribution_text: str | None = None
+    source_url: AnyHttpUrl
+    usability_score: float = Field(default=1.0, ge=0.0, le=10.0)
+    difficulty: Literal["beginner", "intermediate", "advanced"] = "beginner"
+    age_appropriate: bool = True
+    is_approved: bool = True
+    sample_questions: list[str] = Field(default_factory=list)
+    limitations: list[str] = Field(default_factory=list)
+
+
+class DatasetMatch(BaseModel):
+    kaggle_ref: Annotated[str, StringConstraints(strip_whitespace=True, pattern=r"^[a-zA-Z0-9\-_.]+/[a-zA-Z0-9\-_.]+$")] = Field(
+        description="The Kaggle dataset reference, formatted as 'owner/dataset-name'"
+    )
+    match_reason: LongText = Field(
+        description="1-2 sentences: why this dataset fits the student's research question"
+    )
+
+
+class DatasetMatchList(BaseModel):
+    matches: list[DatasetMatch] = Field(
+        default_factory=list,
+        max_length=5,
+        description="Up to 5 recommended datasets from the catalog, best first"
+    )
+
+
+class DatasetRecommendationOut(BaseModel):
+    id: int
+    kaggle_dataset_id: int
+    kaggle_ref: str
+    title: str
+    description: str
+    match_reason: str
+    license: str
+    attribution_required: bool
+    attribution_text: str | None = None
+    size_mb: float
+    difficulty: str
+    limitations: list[str] = Field(default_factory=list)
+    sample_questions: list[str] = Field(default_factory=list)
+    source_url: str
+    status: Literal["suggested", "chosen", "dismissed"] = "suggested"
+
+
+class ColumnSummary(BaseModel):
+    name: str
+    dtype: str
+    non_null_count: int
+    null_count: int
+    unique_count: int
+    sample_values: list[str] = Field(default_factory=list)
+
+
+class StarterEDAResult(BaseModel):
+    """Deterministic output from pandas starter EDA analysis."""
+
+    row_count: int
+    column_count: int
+    columns: list[str]
+    dtypes: dict[str, str]
+    head_records: list[dict]
+    missing_values: dict[str, int]
+    numeric_summary: dict[str, dict[str, float | None]] = Field(default_factory=dict)
+    categorical_value_counts: dict[str, dict[str, int]] = Field(default_factory=dict)
+    column_summaries: list[ColumnSummary] = Field(default_factory=list)
+    correlation_reminder: str = CORRELATION_REMINDER
+    explanation: str | None = None

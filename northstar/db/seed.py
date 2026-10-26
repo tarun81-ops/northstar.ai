@@ -5,15 +5,18 @@
     python -m northstar.db.seed --demo          # wipe EVERYTHING and load the full demo (goal, plan, a past week)
     python -m northstar.db.seed --week stressed # fill LAST week with a good / bad / stressed week of check-ins
 """
+import json
 import sys
 from datetime import date, timedelta
+from pathlib import Path
 
 from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
-from northstar.db.models import Base, ProgressLog, Task
+from northstar.config import PROJECT_ROOT
+from northstar.db.models import Base, KaggleDataset, ProgressLog, Task
 from northstar.db.session import engine, get_session, init_db
-from northstar.schemas import CheckIn, GoalIn, MilestoneIn, ProfileIn, TaskDraft
+from northstar.schemas import CheckIn, GoalIn, KaggleDatasetEntry, MilestoneIn, ProfileIn, TaskDraft
 from northstar.services.goals import create_goal, get_active_goal, save_milestones
 from northstar.services.profile import demo_student_id, save_profile
 from northstar.services.progress import log_checkin
@@ -113,6 +116,49 @@ DEMO_TASKS = [
 ]
 
 
+def load_kaggle_catalog(session: Session, catalog_path: Path | None = None) -> int:
+    """Load or update Kaggle datasets from data/kaggle_catalog.json idempotently.
+
+    Validates every entry against KaggleDatasetEntry before writing.
+    Returns the count of datasets synchronized.
+    """
+    path = catalog_path or (PROJECT_ROOT / "data" / "kaggle_catalog.json")
+    if not path.exists():
+        return 0
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    items = raw.get("datasets", [])
+    synced = 0
+    for item in items:
+        entry = KaggleDatasetEntry.model_validate(item)
+        existing = session.query(KaggleDataset).filter(KaggleDataset.kaggle_ref == entry.kaggle_ref).first()
+        data = {
+            "kaggle_ref": entry.kaggle_ref,
+            "title": entry.title,
+            "description": entry.description,
+            "niche_tags": entry.niche_tags,
+            "file_type": entry.file_type,
+            "size_mb": entry.size_mb,
+            "license": entry.license,
+            "attribution_required": entry.attribution_required,
+            "attribution_text": entry.attribution_text,
+            "source_url": str(entry.source_url),
+            "usability_score": entry.usability_score,
+            "difficulty": entry.difficulty,
+            "age_appropriate": entry.age_appropriate,
+            "is_approved": entry.is_approved,
+            "sample_questions": entry.sample_questions,
+            "limitations": entry.limitations,
+        }
+        if existing:
+            for k, v in data.items():
+                setattr(existing, k, v)
+        else:
+            session.add(KaggleDataset(**data))
+        synced += 1
+    session.commit()
+    return synced
+
+
 def reset_demo(full: bool) -> int | None:
     """Wipe ALL data. full=True then loads a ready-to-demo student (no AI calls, so it's instant and free):
     profile, goal + milestones, a stressed week last week (ready to review) and a saved plan for this week."""
@@ -123,6 +169,7 @@ def reset_demo(full: bool) -> int | None:
     today = date.today()
     profile = demo_profile(today)
     with get_session() as s:
+        load_kaggle_catalog(s)
         sid = save_profile(s, profile)
         goal_id = create_goal(s, sid, GoalIn(title=DEMO_GOAL, category="academics", target_date=today + timedelta(days=60),
                                              description="I want to get better at algebra and actually finish a robot project"))
@@ -145,7 +192,9 @@ def seed(reset: bool = False) -> int:
         Base.metadata.drop_all(engine)
     init_db()
     with get_session() as s:
+        load_kaggle_catalog(s)
         return demo_student_id(s) or save_profile(s, demo_profile())
+
 
 
 if __name__ == "__main__":
