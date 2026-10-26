@@ -262,3 +262,20 @@ class Source(Base):
     note: Mapped[str] = mapped_column(Text, default="")  # what it says / why it's useful, in the student's words
     added_by: Mapped[str] = mapped_column(choice("student", "library", name="source_origin"))
     opened: Mapped[bool] = mapped_column(default=False)  # the student confirms they actually opened it
+
+
+# ---- Phase 11: opportunity discovery -----------------------------------------------------
+
+class Recommendation(Base):
+    """An opportunity from data/opportunities.json (by key) suggested to a student. The JSON file is the
+    single source of truth for opportunity details, so they aren't copied into the database."""
+
+    __tablename__ = "recommendations"
+    __table_args__ = (UniqueConstraint("student_id", "opportunity_key", name="one_recommendation_per_opportunity"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey("students.id", ondelete="CASCADE"), index=True)
+    opportunity_key: Mapped[str] = mapped_column(String(80))
+    reason: Mapped[str] = mapped_column(Text)  # the AI's "why it matches", from the profile and the entry only
+    status: Mapped[str] = mapped_column(choice("suggested", "saved", "dismissed", name="recommendation_status"), default="suggested")
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())

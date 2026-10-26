@@ -45,6 +45,7 @@ Without an API key the app still runs: forms, plans, check-ins and reviews you a
 | **Daily Check-in** | Under a minute: did you do it? how long? too easy / just right / too hard, enjoyment, stress, blockers, a link to your work |
 | **Weekly Review** | The week's numbers and detected patterns, a kind AI review, and up to 3 suggested changes to **Accept** or **Dismiss** |
 | **Explore** | Interest signals (profile, check-ins, your own words, past experiments) → 3–5 specific niches that cite them → a free 3–14 day curiosity experiment → a reflection that feeds back into your interests |
+| **Opportunities** | Competitions, programmes and courses from a curated list. Python checks age and deadlines; the AI explains the best fits; every fact (eligibility, deadline, cost, time) comes from the data. Save or dismiss; "Open official page" - never a register button |
 | **Research Studio** | A guided 8-step mini-project (question → background → hypothesis → ethical method → data → analysis → artifact → limitations). You write; the coach asks questions. Sources come from a curated library or your own links, cited as [S1], [S2]…; the downloadable report is built only from your notes |
 
 ---
@@ -77,6 +78,7 @@ Streamlit pages
 | Apply a change | `services/review.decide_change`, called **only** by the Accept button | Deliberately not an AI tool. Accepted changes become rules the next plan must follow (lighter load, shorter tasks, easier steps), enforced in Python |
 | Suggest niches | **Niche Mentor**: one structured-output call (graph node `suggest_niches`) | Every niche must cite real interest-signal ids (Python checks); the page shows the cited signals from the database, not AI text. Experiments must be free, safe, 3–14 days |
 | Coach a research step | **Research Coach**: one structured-output call (graph node `coach_step`) | Feedback + 1–3 questions + one next action. Python rejects links and citations of sources the project doesn't have. It never writes the student's work |
+| Match opportunities | `services/opportunities.py` + `data/opportunities.json`, then the **Opportunity Agent** (graph node `match_opportunities`) | Python filters by age, deadline and cost and ranks by interests; the AI only writes "why it fits" and never sees costs or deadlines. Location is never used - NorthStar doesn't store it |
 | Sources, citations, report | `services/research.py` + `data/sources.json` | No AI. Sources come only from the curated library or the student; numbers never change; the report removes citations that aren't stored sources and flags unknown links; the method step needs the ethics checklist |
 
 ### Safety and privacy by design
@@ -136,4 +138,6 @@ The same resets are in the app under **🧪 Demo tools** in the home page's side
 
 ## Roadmap
 
-MVP (phases 1–8), niche discovery (phase 9) and the research studio (phase 10) are complete. Next: curated opportunity discovery, then testing, polish and deployment to Streamlit Community Cloud. See `PLAN.md`.
+MVP (phases 1–8), niche discovery (phase 9), the research studio (phase 10) and opportunity discovery (phase 11) are complete. Next: testing, polish and deployment to Streamlit Community Cloud. See `PLAN.md`.
+
+**Before real students use Opportunities:** each entry in `data/opportunities.json` is marked "not yet checked". Have a person open each official page, confirm the details, and fill in `verified_on` (and `deadline`, if there is one). Entries with a past deadline are hidden automatically.

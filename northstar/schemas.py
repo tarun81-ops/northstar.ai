@@ -184,6 +184,39 @@ class CoachReply(BaseModel):
     ethics_flags: list[LongText] = Field(default_factory=list, description="Any safety or ethics concerns, else empty")
 
 
+class Opportunity(BaseModel):
+    """One curated entry in data/opportunities.json (validated on load, so a typo can't reach a student)."""
+
+    key: Annotated[str, StringConstraints(pattern=r"^[a-z0-9-]+$")]
+    title: str
+    organizer: str
+    type: Literal["competition", "hackathon", "olympiad", "robotics", "science fair", "course", "program"]
+    summary: str
+    tags: list[str]
+    skills_required: list[str] = Field(default_factory=list)
+    age_min: int = Field(ge=5, le=99)
+    age_max: int = Field(ge=5, le=99)
+    eligibility: str
+    region: str
+    format: str
+    cost: str
+    is_free: bool
+    time_commitment: str
+    requires_permission: bool
+    deadline: date | None = None     # null = ongoing or not yet checked
+    verified_on: date | None = None  # null = nobody has checked the official page yet
+    url: AnyHttpUrl
+
+
+class OpportunityMatch(BaseModel):
+    key: str = Field(description="The opportunity's key, exactly as given")
+    why: LongText = Field(description="1-2 sentences: why it fits this student, using only the profile and the entry")
+
+
+class OpportunityMatchList(BaseModel):
+    matches: list[OpportunityMatch] = Field(description="The 2-5 best fits, best first")
+
+
 class MilestoneIn(MilestoneDraft):
     """A milestone the student edits/confirms. id=None means new."""
 

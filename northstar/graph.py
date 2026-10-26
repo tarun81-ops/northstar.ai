@@ -4,6 +4,7 @@
                            +--> plan_week ------> END
                            +--> suggest_niches -> END
                            +--> coach_step -----> END
+                           +--> match_opportunities --> END
 
 A StateGraph passes a `State` dict between nodes. The router is plain Python (the page says what it wants),
 so routing never costs an LLM call. Each node loads what it needs from the database, calls one agent,
@@ -17,6 +18,7 @@ from typing import Any, Literal, TypedDict
 from langgraph.graph import END, START, StateGraph
 
 from northstar.agents.niche_agent import suggest_niches
+from northstar.agents.opportunity_agent import match_opportunities
 from northstar.agents.progress_agent import write_review
 from northstar.agents.research_agent import coach_step
 from northstar.agents.schedule_agent import plan_week
@@ -24,6 +26,7 @@ from northstar.db.session import get_session
 from northstar.schemas import MilestoneIn
 from northstar.services.goals import get_active_goal
 from northstar.services.niches import refresh_signals, save_suggestions, suggestions
+from northstar.services.opportunities import CANDIDATES, dismissed_keys, eligible, load_opportunities, rank, save_matches
 from northstar.services.patterns import detect
 from northstar.services.profile import get_profile
 from northstar.services.progress import week_summary
@@ -31,8 +34,8 @@ from northstar.services.research import get_project, save_coach_reply
 from northstar.services.review import adjustments_for_week, save_review
 from northstar.services.tasks import busy_minutes, get_week_tasks
 
-Intent = Literal["weekly_review", "plan_week", "suggest_niches", "coach_step"]
-NODES = ("weekly_review", "plan_week", "suggest_niches", "coach_step")
+Intent = Literal["weekly_review", "plan_week", "suggest_niches", "coach_step", "match_opportunities"]
+NODES = ("weekly_review", "plan_week", "suggest_niches", "coach_step", "match_opportunities")
 
 
 class State(TypedDict, total=False):
@@ -42,6 +45,7 @@ class State(TypedDict, total=False):
     today: date
     project_id: int  # coach_step
     step_id: int     # coach_step
+    only_free: bool  # match_opportunities
     result: Any
 
 
@@ -101,6 +105,25 @@ def coach_step_node(state: State) -> dict:
     return {"result": reply}
 
 
+def match_opportunities_node(state: State) -> dict:
+    """Eligible (age, deadline, cost) and ranked by interests (Python) -> best fits with "why" (LLM) -> saved."""
+    sid = state["student_id"]
+    with get_session() as s:
+        profile = get_profile(s, sid)
+        signals = [sig.signal for sig in refresh_signals(s, sid, profile)]
+        niches = [n.niche_name for n in suggestions(s, sid, "chosen")]
+        skip = dismissed_keys(s, sid)
+    open_to_them = [o for o in eligible(load_opportunities(), profile, state["today"], state.get("only_free", False))
+                    if o.key not in skip]
+    candidates = rank(open_to_them, profile.interests + profile.subjects + profile.strengths + signals + niches)[:CANDIDATES]
+    if not candidates:
+        return {"result": 0}  # nothing eligible matches their interests: no AI call
+    matches = match_opportunities(profile, candidates, signals, niches)
+    with get_session() as s:
+        save_matches(s, sid, matches)
+    return {"result": len(matches)}
+
+
 def route(state: State) -> Intent:
     return state["intent"]
 
@@ -110,6 +133,7 @@ builder.add_node("weekly_review", weekly_review_node)
 builder.add_node("plan_week", plan_week_node)
 builder.add_node("suggest_niches", suggest_niches_node)
 builder.add_node("coach_step", coach_step_node)
+builder.add_node("match_opportunities", match_opportunities_node)
 builder.add_conditional_edges(START, route, list(NODES))
 for node in NODES:
     builder.add_edge(node, END)
