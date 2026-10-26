@@ -44,6 +44,7 @@ Without an API key the app still runs: forms, plans, check-ins and reviews you a
 | **This Week** | AI proposes tasks; the scheduler fits them into each day's free time; preview, then save |
 | **Daily Check-in** | Under a minute: did you do it? how long? too easy / just right / too hard, enjoyment, stress, blockers, a link to your work |
 | **Weekly Review** | The week's numbers and detected patterns, a kind AI review, and up to 3 suggested changes to **Accept** or **Dismiss** |
+| **Explore** | Interest signals (profile, check-ins, your own words, past experiments) → 3–5 specific niches that cite them → a free 3–14 day curiosity experiment → a reflection that feeds back into your interests |
 
 ---
 
@@ -73,6 +74,7 @@ Streamlit pages
 | Spot patterns | `services/patterns.py` | too easy / too hard / skipping / overloaded / losing interest / strong interest / bad week: named thresholds, with evidence |
 | Weekly review | **Progress Agent**: one structured-output call | Explains the patterns kindly; picks changes only from a fixed menu |
 | Apply a change | `services/review.decide_change`, called **only** by the Accept button | Deliberately not an AI tool. Accepted changes become rules the next plan must follow (lighter load, shorter tasks, easier steps), enforced in Python |
+| Suggest niches | **Niche Mentor**: one structured-output call (graph node `suggest_niches`) | Every niche must cite real interest-signal ids (Python checks); the page shows the cited signals from the database, not AI text. Experiments must be free, safe, 3–14 days |
 
 ### Safety and privacy by design
 
@@ -131,4 +133,4 @@ The same resets are in the app under **🧪 Demo tools** in the home page's side
 
 ## Roadmap
 
-MVP (phases 1–8) is complete. Next: niche discovery, a research studio that cites only stored sources, curated opportunity discovery, then testing, polish and deployment to Streamlit Community Cloud. See `PLAN.md`.
+MVP (phases 1–8) and niche discovery (phase 9) are complete. Next: a research studio that cites only stored sources, curated opportunity discovery, then testing, polish and deployment to Streamlit Community Cloud. See `PLAN.md`.

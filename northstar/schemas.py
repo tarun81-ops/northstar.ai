@@ -135,6 +135,37 @@ class WeeklyReviewOut(BaseModel):
     question: LongText = Field(description="One reflective question for the student")
 
 
+class ExperimentDraft(BaseModel):
+    title: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=200)]
+    duration_days: int = Field(description="3 to 14 days")
+    steps: list[Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=300)]] = Field(
+        description="3 to 6 small, concrete steps"
+    )
+
+
+class NicheDraft(BaseModel):
+    """A niche the Niche Mentor suggests. matched_signal_ids must be real signal ids - Python checks."""
+
+    niche_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=100)]
+    description: LongText = Field(description="2 sentences: what this niche is about")
+    why: LongText = Field(description="1-2 sentences linking it to the student's signals")
+    matched_signal_ids: list[int] = Field(description="Ids of the signals this niche builds on (at least 1)")
+    skills_required: list[ShortText] = Field(default_factory=list, max_length=5)
+    experiment: ExperimentDraft
+
+
+class NicheList(BaseModel):
+    niches: list[NicheDraft]
+
+
+class Reflection(BaseModel):
+    curiosity: Rating = Field(description="How curious did it make you?")
+    energy: Rating = Field(description="Did it give you energy or drain you?")
+    confidence: Rating = Field(description="How confident do you feel in it now?")
+    meaning: Rating = Field(description="Does it feel meaningful to you?")
+    notes: LongText = ""
+
+
 class MilestoneIn(MilestoneDraft):
     """A milestone the student edits/confirms. id=None means new."""
 

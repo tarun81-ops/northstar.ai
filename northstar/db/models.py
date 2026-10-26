@@ -151,3 +151,60 @@ class PlanChange(Base):
         choice("proposed", "applied", "dismissed", name="plan_change_status"), default="proposed"
     )
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+# ---- Phase 9: niche discovery ---------------------------------------------------------
+
+class InterestSignal(Base):
+    """Evidence of what the student is curious about. Niche suggestions must cite these by id."""
+
+    __tablename__ = "interest_signals"
+    __table_args__ = (CheckConstraint("strength BETWEEN 1 AND 5", name="signal_strength_range"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey("students.id", ondelete="CASCADE"), index=True)
+    signal: Mapped[str] = mapped_column(String(200))
+    source: Mapped[str] = mapped_column(choice("profile", "checkins", "student", "experiment", name="signal_source"))
+    strength: Mapped[int] = mapped_column(default=3)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class NicheSuggestion(Base):
+    __tablename__ = "niche_suggestions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey("students.id", ondelete="CASCADE"), index=True)
+    niche_name: Mapped[str] = mapped_column(String(100))
+    description: Mapped[str] = mapped_column(Text)
+    why: Mapped[str] = mapped_column(Text)
+    matched_signals: Mapped[list] = mapped_column(JSON, default=list)  # [{"id", "signal"}] snapshot of the cited evidence
+    skills_required: Mapped[list] = mapped_column(JSON, default=list)
+    experiment: Mapped[dict] = mapped_column(JSON, default=dict)  # the curiosity experiment proposed with it
+    status: Mapped[str] = mapped_column(
+        choice("suggested", "chosen", "dismissed", name="niche_status"), default="suggested"
+    )
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class CuriosityExperiment(Base):
+    """A short, free, safe try-out of a niche, ending in a reflection the student scores."""
+
+    __tablename__ = "curiosity_experiments"
+    __table_args__ = tuple(
+        CheckConstraint(f"{s} BETWEEN 1 AND 5", name=f"experiment_{s}_range")
+        for s in ("curiosity_score", "energy_score", "confidence_score", "meaning_score")
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey("students.id", ondelete="CASCADE"), index=True)
+    niche_id: Mapped[int] = mapped_column(ForeignKey("niche_suggestions.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    steps: Mapped[list] = mapped_column(JSON, default=list)  # [{"text": "...", "done": false}]
+    duration_days: Mapped[int]
+    started_on: Mapped[date]
+    status: Mapped[str] = mapped_column(choice("active", "done", "stopped", name="experiment_status"), default="active")
+    reflection: Mapped[str] = mapped_column(Text, default="")
+    curiosity_score: Mapped[int | None]
+    energy_score: Mapped[int | None]
+    confidence_score: Mapped[int | None]
+    meaning_score: Mapped[int | None]
