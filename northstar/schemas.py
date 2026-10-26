@@ -2,7 +2,7 @@
 from datetime import date
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, StringConstraints, field_validator
+from pydantic import AnyHttpUrl, BaseModel, Field, StringConstraints, field_validator
 
 Day = Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 DAYS: tuple[Day, ...] = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
@@ -96,6 +96,24 @@ class TaskDraft(BaseModel):
 
 class TaskDraftList(BaseModel):
     tasks: list[TaskDraft]
+
+
+Rating = Annotated[int, Field(ge=1, le=5)]
+
+
+class CheckIn(BaseModel):
+    """One task's check-in. Only `completed` is required - everything else is optional to keep it under a minute."""
+
+    task_id: int
+    completed: Literal["yes", "partial", "no"]
+    time_spent_minutes: int = Field(0, ge=0, le=600)
+    difficulty_rating: Literal["too_easy", "just_right", "too_hard"] | None = None
+    enjoyment: Rating | None = None
+    stress: Rating | None = None
+    confidence: Rating | None = None
+    student_notes: LongText = ""
+    blockers: LongText = ""
+    evidence_url: AnyHttpUrl | None = None  # a link the student chooses to share (photo, repo, doc)
 
 
 class MilestoneIn(MilestoneDraft):
