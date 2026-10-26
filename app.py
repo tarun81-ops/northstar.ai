@@ -21,5 +21,6 @@ if profile is None:
     st.page_link("pages/1_Onboarding.py", label="Start onboarding", icon="📝")
 else:
     st.write(f"Welcome back, **{profile.alias}**!")
+    st.page_link("pages/3_This_Week.py", label="This week's plan", icon="🗓️")
     st.page_link("pages/2_Goal_and_Roadmap.py", label="Your goal & roadmap", icon="🎯")
     st.page_link("pages/1_Onboarding.py", label="Edit your profile", icon="📝")

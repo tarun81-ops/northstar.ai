@@ -136,7 +136,10 @@ with form_tab:
             column_config={
                 "day": st.column_config.TextColumn("Day", disabled=True),
                 "school": st.column_config.TextColumn("School hours", help="HH:MM-HH:MM, leave blank if no school"),
-                "free_minutes": st.column_config.NumberColumn("Free minutes for study & projects", min_value=0, max_value=720, step=15),
+                "free_minutes": st.column_config.NumberColumn(
+                    "Free minutes after school", min_value=0, max_value=720, step=15,
+                    help="All your free time that day. Don't subtract activities - NorthStar does that from the list below.",
+                ),
             },
             hide_index=True,
             width="stretch",

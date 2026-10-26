@@ -80,6 +80,24 @@ class MilestoneList(BaseModel):
     milestones: list[MilestoneDraft]
 
 
+class TaskDraft(BaseModel):
+    """A task the Schedule Agent proposes. It does NOT pick the day - services/scheduler.py does."""
+
+    title: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=200)] = Field(
+        description="Concrete verb first, e.g. 'Solve 8 factorising problems'"
+    )
+    category: Category
+    duration_minutes: int = Field(ge=10, le=90)
+    difficulty: int = Field(ge=1, le=5)
+    is_optional: bool = False
+    milestone_id: int | None = Field(None, description="Id of the milestone this task moves forward, if any")
+    why: LongText = Field("", description="One line: why this task, this week")
+
+
+class TaskDraftList(BaseModel):
+    tasks: list[TaskDraft]
+
+
 class MilestoneIn(MilestoneDraft):
     """A milestone the student edits/confirms. id=None means new."""
 
