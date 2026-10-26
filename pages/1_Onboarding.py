@@ -6,6 +6,7 @@ from pydantic import ValidationError
 
 from northstar.agents.profile_agent import build_profile_agent, greeting
 from northstar.db.session import get_session, init_db
+from northstar.llm import ai_problem
 from northstar.schemas import DAYS, DayAvailability, ProfileIn
 from northstar.services.profile import demo_student_id, get_profile, save_profile
 
@@ -61,13 +62,17 @@ st.title("Tell NorthStar about you")
 st.caption("Use a nickname. NorthStar never asks for your full name, school, address or location.")
 chat_tab, form_tab = st.tabs(["💬 Chat", "📝 Form"])
 
-with chat_tab:
+def render_chat() -> None:
+    """The chat tab. Uses `return` (not st.stop) on problems, so the Form tab below still renders."""
+    if ai_off := ai_problem():
+        st.warning(ai_off + " Use the Form tab to fill in your profile.")
+        return
     if "profile_chat" not in st.session_state:
         try:
             agent, state = build_profile_agent(student_id)
-        except Exception as e:  # e.g. missing API key: the form still works
+        except Exception as e:
             st.warning(f"Chat is unavailable ({e}). You can use the Form tab instead.")
-            st.stop()
+            return
         st.session_state.profile_chat = {"agent": agent, "state": state, "messages": [AIMessage(greeting(current.alias if current else None))]}
     chat = st.session_state.profile_chat
 
@@ -93,7 +98,7 @@ with chat_tab:
                 except Exception as e:
                     chat["messages"].pop()
                     st.error(f"Sorry, something went wrong talking to the AI: {e}")
-                    st.stop()
+                    return
             st.rerun()  # refresh the profile card with what was just saved
 
     with right:
@@ -106,6 +111,10 @@ with chat_tab:
         if st.button("Start the chat over"):
             del st.session_state.profile_chat
             st.rerun()
+
+
+with chat_tab:
+    render_chat()
 
 with form_tab:
     with st.form("profile"):

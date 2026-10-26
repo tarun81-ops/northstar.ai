@@ -6,6 +6,7 @@ import streamlit as st
 from northstar.agents.schedule_agent import ScheduleError, WeekPlan
 from northstar.db.session import get_session, init_db
 from northstar.graph import run
+from northstar.llm import ai_problem
 from northstar.services.goals import get_active_goal
 from northstar.services.profile import demo_student_id, get_profile
 from northstar.services.review import adjustments_for_week
@@ -75,8 +76,10 @@ preview_key = f"week_preview_{start}"
 preview: WeekPlan | None = st.session_state.get(preview_key)
 kept = [t for t in saved if t.status != "todo"]  # history: re-planning never touches these
 
+if ai_off := ai_problem():
+    st.warning(ai_off)
 buttons = st.container(horizontal=True)
-if buttons.button("✨ Re-plan (keeps finished tasks)" if saved else "✨ Plan this week"):
+if buttons.button("✨ Re-plan (keeps finished tasks)" if saved else "✨ Plan this week", disabled=bool(ai_off)):
     try:
         with st.spinner("NorthStar is planning your week…"):
             plan = run("plan_week", student_id, start, today)

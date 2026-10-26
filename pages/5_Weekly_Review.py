@@ -7,6 +7,7 @@ import streamlit as st
 from northstar.agents.progress_agent import ReviewError
 from northstar.db.session import get_session, init_db
 from northstar.graph import run
+from northstar.llm import ai_problem
 from northstar.services.patterns import MIN_CHECKINS, detect
 from northstar.services.profile import demo_student_id
 from northstar.services.progress import week_summary
@@ -71,7 +72,9 @@ else:
 
 # ---- 3. Review + proposed changes (AI, student decides) ---------------------------
 st.subheader("Your review")
-if st.button("✨ Write my weekly review" if review is None else "✨ Write it again"):
+if ai_off := ai_problem():
+    st.warning(ai_off)
+if st.button("✨ Write my weekly review" if review is None else "✨ Write it again", disabled=bool(ai_off)):
     try:
         with st.spinner("NorthStar is looking back at your week…"):
             run("weekly_review", student_id, start)

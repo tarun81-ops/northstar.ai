@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from northstar.agents.roadmap_agent import RoadmapError, generate_milestones
 from northstar.db.session import get_session, init_db
+from northstar.llm import ai_problem
 from northstar.schemas import CATEGORIES, GoalIn, MilestoneIn
 from northstar.services.goals import archive_goal, create_goal, get_active_goal, save_milestones
 from northstar.services.profile import demo_student_id, get_profile
@@ -71,8 +72,10 @@ if saved:
 draft_key = f"milestone_draft_{goal.id}"
 draft: list[MilestoneIn] | None = st.session_state.get(draft_key)
 
+if ai_off := ai_problem():
+    st.warning(ai_off + " You can still add milestones by hand below.")
 buttons = st.container(horizontal=True)  # buttons sized to their labels, side by side
-if buttons.button("✨ Suggest milestones" if not saved else "✨ Suggest a new set"):
+if buttons.button("✨ Suggest milestones" if not saved else "✨ Suggest a new set", disabled=bool(ai_off)):
     try:
         goal_in = GoalIn(title=goal.title, description=goal.description, category=goal.category, target_date=goal.target_date)
         with st.spinner("NorthStar is planning your milestones…"):

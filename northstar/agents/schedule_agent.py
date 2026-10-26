@@ -90,7 +90,7 @@ def plan_week(profile: ProfileIn, goal_title: str, milestones: list[MilestoneIn]
         result = llm.invoke(messages)
         problems = check_drafts(result.tasks, cap, {m.id for m in current}, adjust)
         if not problems:
-            placed, overflow = place(result.tasks, cap)
+            placed, overflow = place(result.tasks, cap, {m.id: i for i, m in enumerate(current)})
             return WeekPlan(placed, overflow, cap, exams)
         messages += [AIMessage(result.model_dump_json()), HumanMessage("Please fix these problems: " + "; ".join(problems))]
     raise ScheduleError("The tasks still had problems: " + "; ".join(problems))

@@ -1,0 +1,134 @@
+# ⭐ NorthStar
+
+**One Mentor. Every Student's Path.**
+
+NorthStar is an AI mentor for school and college students. It learns about the student, turns one goal into milestones, plans a realistic week, collects quick daily check-ins, and every week reviews what happened and suggests changes, which the student decides on.
+
+It is built **for the student**: no parent monitoring, no leaderboards, no diagnosis, no doing graded work, and nothing changes without the student's OK.
+
+Built with Python, LangChain, LangGraph, SQLAlchemy (SQLite) and Streamlit.
+
+---
+
+## Quick start
+
+```bash
+python -m venv .venv
+.venv/Scripts/python.exe -m pip install -r requirements.txt   # macOS/Linux: .venv/bin/python
+cp .env.example .env                                           # then put your API key in .env
+.venv/Scripts/python.exe -m northstar.db.seed --demo           # optional: load the demo student "Aarav"
+.venv/Scripts/python.exe -m streamlit run app.py
+```
+
+Open http://localhost:8501.
+
+### Configuration (`.env`)
+
+| Variable | Example | Notes |
+|---|---|---|
+| `NORTHSTAR_MODEL` | `openai:gpt-6-luna` | `provider:model`. Also works with `google_genai:gemini-2.5-flash` or `anthropic:...` |
+| `OPENAI_API_KEY` / `GOOGLE_API_KEY` | `sk-...` | The key for the provider above |
+| `DATABASE_URL` | *(optional)* | Defaults to `data/northstar.db` (SQLite). Use a `postgresql+psycopg://...` URL for Postgres |
+
+Without an API key the app still runs: forms, plans, check-ins and reviews you already have all work, and the AI buttons explain what's missing.
+
+---
+
+## What the student can do
+
+| Page | What happens |
+|---|---|
+| **Home (Today)** | Tick off today's tasks, see what's coming up, this week's progress, planned vs actual minutes, and the last review's win |
+| **Onboarding** | Chat with NorthStar (or fill in a form) to build a profile: subjects, interests, strengths, challenges, free time, activities, exams |
+| **Goal & Roadmap** | Set one goal → AI suggests 4–8 milestones with checkable "done when…" criteria → edit and confirm |
+| **This Week** | AI proposes tasks; the scheduler fits them into each day's free time; preview, then save |
+| **Daily Check-in** | Under a minute: did you do it? how long? too easy / just right / too hard, enjoyment, stress, blockers, a link to your work |
+| **Weekly Review** | The week's numbers and detected patterns, a kind AI review, and up to 3 suggested changes to **Accept** or **Dismiss** |
+
+---
+
+## How it works
+
+**The LLM reasons and writes; Python decides and guarantees.**
+
+```
+Streamlit pages
+     │
+     ├── graph.run(intent) ── LangGraph StateGraph ──┬── weekly_review node → Progress Agent
+     │                        (plain-Python router)  └── plan_week node    → Schedule Agent
+     ├── Profile Agent (create_agent tool-calling loop)
+     └── Roadmap Agent (one structured-output call)
+                 │
+     services/ (plain Python: scheduler, patterns, progress, goals, review)
+                 │
+     SQLAlchemy models → SQLite / Postgres
+```
+
+| Job | Done by | Why |
+|---|---|---|
+| Interview the student | **Profile Agent**: a tool-calling loop (`get_student_profile`, `get_missing_profile_fields`, `update_student_profile`) | Open-ended conversation needs an agent; tools are the only way it can touch data, and it can't choose which student |
+| Goal → milestones | **Roadmap Agent**: one structured-output call | Python checks count, order and dates, and sends problems back for one retry |
+| What to do this week | **Schedule Agent**: one structured-output call | Proposes tasks (what, how long, how hard), never days |
+| Which day each task goes on | `services/scheduler.py` | No day over capacity, 20% rest buffer, required before optional, ≤2 per area per day, milestone order kept, overflow reported |
+| Spot patterns | `services/patterns.py` | too easy / too hard / skipping / overloaded / losing interest / strong interest / bad week: named thresholds, with evidence |
+| Weekly review | **Progress Agent**: one structured-output call | Explains the patterns kindly; picks changes only from a fixed menu |
+| Apply a change | `services/review.decide_change`, called **only** by the Accept button | Deliberately not an AI tool. Accepted changes become rules the next plan must follow (lighter load, shorter tasks, easier steps), enforced in Python |
+
+### Safety and privacy by design
+
+- **Student in control:** the AI only *proposes*; milestones, plans and plan changes are saved only when the student clicks.
+- **No guilt:** daily replies are rule-based and tested against guilt words; reviews are instructed to describe, not judge.
+- **Boundaries in every prompt** (`northstar/prompts/shared_safety.md`): no diagnosis, no medical/legal/financial advice, no graded work, no invented sources, no registering for anything.
+- **Privacy:** nicknames only; no location, contacts or browsing data; the nickname isn't sent to the LLM when planning or reviewing.
+
+---
+
+## Project structure
+
+```
+app.py                     Home: today's checklist + dashboard + demo tools
+pages/                     Onboarding, Goal & Roadmap, This Week, Daily Check-in, Weekly Review
+northstar/
+  config.py, llm.py        Settings; get_llm() and the API-key check
+  graph.py                 LangGraph orchestrator (weekly_review, plan_week)
+  agents/                  profile_agent, roadmap_agent, schedule_agent, progress_agent
+  tools/profile_tools.py   The Profile Agent's tools
+  prompts/                 shared_safety.md + one prompt per agent
+  services/                scheduler, patterns, progress, goals, review, tasks, profile (no LLM)
+  db/                      models.py, session.py, seed.py (demo data)
+  schemas.py               Pydantic schemas shared by forms, tools, agents and tests
+tests/                     pytest; no API key needed (agents are tested with a fake LLM)
+scratch/                   Phase 1 learning scripts
+PLAN.md                    The full development plan
+```
+
+## Tests
+
+```bash
+.venv/Scripts/python.exe -m pytest -q
+```
+
+They cover the scheduling guarantees, pattern detection, the review → accept → replan loop through the LangGraph graph, safety rules (e.g. the AI can't choose the student, decided changes can't be re-decided), and no-guilt wording. Agents are tested with a fake LLM, so tests are free and repeatable.
+
+## Demo data
+
+```bash
+.venv/Scripts/python.exe -m northstar.db.seed --demo           # Aarav: goal, milestones, a stressed past week, this week's plan
+.venv/Scripts/python.exe -m northstar.db.seed --week good      # refill last week with a good / bad / stressed week
+```
+
+The same resets are in the app under **🧪 Demo tools** in the home page's sidebar.
+
+## Demo script (about 7 minutes)
+
+1. **Hook:** "Students have goals but no system. NorthStar plans around their real life, adapts every week, and works for the student, never to monitor them."
+2. **Onboarding** *(after "Start empty")*: chat: "I'm in grade 10, I love building robots, algebra is hard, I get about 2 hours on weekdays." Watch the profile card fill in.
+3. **Goal → milestones:** "Score 85%+ in maths and finish my line-follower robot". Show checkable "done when…" criteria; edit one; confirm.
+4. **This week:** plan it. Point out the capacity bars: "The AI suggests tasks; plain Python guarantees no day is overloaded."
+5. **Check-in:** mark a task "Partly · too hard · blocker: factorising". Note the kind, guilt-free reply.
+6. **Weekly review** *(load the full demo first)*: last week's stressed pattern, the review, and suggested changes. Accept one → This Week shows the lighter plan.
+7. **Safety:** in the chat, ask it to write a graded essay; it declines and offers to help plan it instead.
+
+## Roadmap
+
+MVP (phases 1–8) is complete. Next: niche discovery, a research studio that cites only stored sources, curated opportunity discovery, then testing, polish and deployment to Streamlit Community Cloud. See `PLAN.md`.

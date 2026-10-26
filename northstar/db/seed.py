@@ -2,6 +2,7 @@
 
     python -m northstar.db.seed                 # create tables + demo student if the DB is empty
     python -m northstar.db.seed --reset         # wipe EVERYTHING and start fresh
+    python -m northstar.db.seed --demo          # wipe EVERYTHING and load the full demo (goal, plan, a past week)
     python -m northstar.db.seed --week stressed # fill LAST week with a good / bad / stressed week of check-ins
 """
 import sys
@@ -12,10 +13,12 @@ from sqlalchemy.orm import Session
 
 from northstar.db.models import Base, ProgressLog, Task
 from northstar.db.session import engine, get_session, init_db
-from northstar.schemas import CheckIn, ProfileIn
+from northstar.schemas import CheckIn, GoalIn, MilestoneIn, ProfileIn, TaskDraft
+from northstar.services.goals import create_goal, get_active_goal, save_milestones
 from northstar.services.profile import demo_student_id, save_profile
 from northstar.services.progress import log_checkin
-from northstar.services.scheduler import week_start
+from northstar.services.scheduler import capacity, place, week_start
+from northstar.services.tasks import save_week
 
 WEEK_KINDS = ("good", "bad", "stressed")
 
@@ -88,6 +91,55 @@ def seed_week(session: Session, student_id: int, start: date, kind: str) -> None
                     CheckIn(task_id=t.id, **_outcome(kind, i, t.category, t.duration_minutes)))
 
 
+DEMO_GOAL = "Score 85%+ in maths and finish my line-follower robot"
+# (days from today, title, completion criteria, category) - the milestones the Roadmap Agent produced in testing
+DEMO_MILESTONES = [
+    (4, "Get an algebra baseline", "12 algebra problems marked and 2 error patterns noted", "academics"),
+    (11, "Practise your two toughest algebra topics", "At least 7 of 10 practice problems correct", "academics"),
+    (18, "Do a light maths review before the exam", "6 exam-style questions marked and corrected", "academics"),
+    (28, "Build the robot chassis", "Chassis assembled, wheels turn freely, both motors tested", "technical"),
+    (42, "Test the line sensors and motor control", "Sensor readings recorded; start, stop and reverse work", "technical"),
+    (49, "Tune a first line-following run", "Robot follows a taped line for 1 m in 2 of 3 tries", "technical"),
+    (60, "Show your maths progress and finish the robot", "85% on a practice set and a 2 m line-following run", "academics"),
+]
+# (title, category, minutes, difficulty, index of the milestone it serves or None, optional)
+DEMO_TASKS = [
+    ("Solve 12 algebra problems for your baseline", "academics", 40, 2, 0, False),
+    ("Mark the 12 answers and note 2 error patterns", "academics", 25, 2, 0, False),
+    ("Watch worked examples for your two toughest topics", "academics", 30, 2, 1, False),
+    ("Solve 5 problems on the first tough topic", "academics", 30, 3, 1, False),
+    ("Solve 5 problems on the second tough topic", "academics", 30, 3, 1, False),
+    ("List the robot's next three build steps", "technical", 20, 1, None, True),
+]
+
+
+def reset_demo(full: bool) -> int | None:
+    """Wipe ALL data. full=True then loads a ready-to-demo student (no AI calls, so it's instant and free):
+    profile, goal + milestones, a stressed week last week (ready to review) and a saved plan for this week."""
+    Base.metadata.drop_all(engine)
+    init_db(engine)
+    if not full:
+        return None
+    today = date.today()
+    profile = demo_profile(today)
+    with get_session() as s:
+        sid = save_profile(s, profile)
+        goal_id = create_goal(s, sid, GoalIn(title=DEMO_GOAL, category="academics", target_date=today + timedelta(days=60),
+                                             description="I want to get better at algebra and actually finish a robot project"))
+        save_milestones(s, goal_id, [MilestoneIn(title=t, due_date=today + timedelta(days=d), completion_criteria=c, category=cat)
+                                     for d, t, c, cat in DEMO_MILESTONES])
+        milestone_ids = [m.id for m in get_active_goal(s, sid).milestones]
+        seed_week(s, sid, week_start(today) - timedelta(days=7), "stressed")
+
+        drafts = [TaskDraft(title=title, category=cat, duration_minutes=minutes, difficulty=difficulty, is_optional=optional,
+                            milestone_id=None if m is None else milestone_ids[m])
+                  for title, cat, minutes, difficulty, m, optional in DEMO_TASKS]
+        monday = week_start(today)
+        placed, _ = place(drafts, capacity(profile, monday, today), {mid: i for i, mid in enumerate(milestone_ids)})
+        save_week(s, sid, monday, placed)
+    return sid
+
+
 def seed(reset: bool = False) -> int:
     if reset:
         Base.metadata.drop_all(engine)
@@ -97,6 +149,9 @@ def seed(reset: bool = False) -> int:
 
 
 if __name__ == "__main__":
+    if "--demo" in sys.argv:
+        print(f"Full demo loaded (student id={reset_demo(full=True)})")
+        sys.exit()
     student_id = seed(reset="--reset" in sys.argv)
     print(f"Demo student ready (id={student_id})")
     if "--week" in sys.argv:

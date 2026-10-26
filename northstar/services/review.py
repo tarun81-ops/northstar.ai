@@ -53,6 +53,11 @@ def get_review(session: Session, student_id: int, start: date) -> tuple[WeeklyRe
     return review, list(session.scalars(select(PlanChange).where(PlanChange.review_id == review.id).order_by(PlanChange.id)))
 
 
+def latest_review(session: Session, student_id: int) -> WeeklyReview | None:
+    return session.scalar(select(WeeklyReview).where(WeeklyReview.student_id == student_id)
+                          .order_by(WeeklyReview.week_start.desc()).limit(1))
+
+
 def save_review(session: Session, student_id: int, start: date, review: WeeklyReviewOut, patterns: list[Pattern]) -> int:
     """Store the review and its proposed changes. Re-running a week's review replaces its *proposed* changes only:
     changes the student already accepted or dismissed are kept."""

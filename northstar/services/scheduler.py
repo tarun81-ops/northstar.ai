@@ -43,22 +43,28 @@ def exams_soon(profile: ProfileIn, start: date) -> list[Exam]:
     return [e for e in profile.exams if start <= e.date <= start + timedelta(days=EXAM_WINDOW_DAYS)]
 
 
-def place(drafts: list[TaskDraft], cap: dict[date, int]) -> tuple[list[tuple[date, TaskDraft]], list[TaskDraft]]:
+def place(drafts: list[TaskDraft], cap: dict[date, int],
+          milestone_rank: dict[int, int] | None = None) -> tuple[list[tuple[date, TaskDraft]], list[TaskDraft]]:
     """Give each task a day. Guarantees:
     - no day goes over its capacity;
     - required tasks are placed before optional ones;
     - at most MAX_SAME_CATEGORY_PER_DAY tasks of one category per day;
     - tasks for the same milestone keep the agent's order (task 2 is never before task 1);
+    - with milestone_rank ({milestone_id: 0, 1, ...}), a task is never before the tasks of an earlier milestone;
     - tasks that don't fit are returned as overflow, never silently dropped.
     Each task goes to the allowed day with the most free time left *relative to its capacity*, earliest on ties,
     which spreads work across the week instead of piling it onto Monday or the weekend."""
+    rank = milestone_rank or {}
     remaining = dict(cap)
     per_category = {d: Counter() for d in cap}
-    not_before: dict[int, date] = {}  # milestone_id -> day of its previous task
+    last_day: dict[int, date] = {}  # milestone_id -> day of its latest placed task
     placed, overflow = [], []
 
-    for task in sorted(drafts, key=lambda t: t.is_optional):  # sort is stable: agent's order kept within each group
-        earliest = not_before.get(task.milestone_id, min(cap))
+    # stable sort: required first, then milestone order; the agent's order is kept within each group
+    for task in sorted(drafts, key=lambda t: (t.is_optional, rank.get(t.milestone_id, 0))):
+        m = task.milestone_id
+        earliest = max([min(cap)] + [day for other, day in last_day.items()
+                                     if m is not None and (other == m or rank.get(other, 0) < rank.get(m, 0))])
         options = [
             d for d in cap
             if d >= earliest
@@ -71,8 +77,8 @@ def place(drafts: list[TaskDraft], cap: dict[date, int]) -> tuple[list[tuple[dat
         day = max(options, key=lambda d: (remaining[d] / cap[d], -d.toordinal()))
         remaining[day] -= task.duration_minutes
         per_category[day][task.category] += 1
-        if task.milestone_id is not None:
-            not_before[task.milestone_id] = day
+        if m is not None:
+            last_day[m] = max(last_day.get(m, day), day)
         placed.append((day, task))
 
     placed.sort(key=lambda pair: pair[0])
