@@ -3,13 +3,14 @@ from datetime import date, timedelta
 
 import streamlit as st
 
-from northstar.agents.schedule_agent import ScheduleError, WeekPlan, plan_week
+from northstar.agents.schedule_agent import ScheduleError, WeekPlan
 from northstar.db.session import get_session, init_db
-from northstar.schemas import MilestoneIn
+from northstar.graph import run
 from northstar.services.goals import get_active_goal
 from northstar.services.profile import demo_student_id, get_profile
+from northstar.services.review import adjustments_for_week
 from northstar.services.scheduler import capacity, exams_soon, week_days, week_start
-from northstar.services.tasks import busy_minutes, get_week_tasks, save_week
+from northstar.services.tasks import get_week_tasks, save_week
 
 STATUS_ICON = {"todo": "⬜", "done": "✅", "partial": "🌓", "skipped": "⏭️"}
 
@@ -38,7 +39,11 @@ st.caption(f"{start:%d %b} – {start + timedelta(days=6):%d %b %Y} · goal: {go
 
 with get_session() as s:
     saved = get_week_tasks(s, student_id, start)
-day_capacity = capacity(profile, start, today=start)  # full capacity of each day, for the bars
+    adjust = adjustments_for_week(s, student_id, start)
+day_capacity = capacity(profile, start, today=start, load_factor=adjust.load_factor)  # each day's full limit, for the bars
+
+if adjust.notes:
+    st.info("🔁 **Using the changes you accepted in your last review:** " + "; ".join(adjust.notes) + ".")
 
 exams = exams_soon(profile, start)
 if exams:
@@ -51,19 +56,19 @@ def render_week(items: list[dict]) -> None:
     planned = sum(i["minutes"] for i in items)
     st.caption(f"Planned **{planned} min** of {sum(day_capacity.values())} min available this week "
                f"(20% of your free time is always left unplanned).")
-    for col, d in zip(st.columns(7), week_days(start)):
+    for d in week_days(start):  # one row per day: readable on phones and laptops alike
         day_items = [i for i in items if i["day"] == d]
         used = sum(i["minutes"] for i in day_items)
-        with col:
-            st.markdown(f"**{d:%a}** {d:%d %b}" + (" 📍" if d == today else ""))
+        with st.container(border=True):
+            head, bar = st.columns([1, 2], vertical_alignment="center")
+            head.markdown(f"**{d:%a %d %b}**" + (" 📍 today" if d == today else ""))
             if day_capacity[d]:
-                st.progress(min(used / day_capacity[d], 1.0), text=f"{used}/{day_capacity[d]} min")
+                bar.progress(min(used / day_capacity[d], 1.0), text=f"{used}/{day_capacity[d]} min")
             else:
-                st.caption("No free time")
+                bar.caption("No free time")
             for i in day_items:
-                with st.container(border=True):
-                    st.markdown(f"{STATUS_ICON[i['status']]} {i['title']}")
-                    st.caption(f"{i['minutes']} min" + (" · optional" if i["optional"] else "") + (f" · {i['why']}" if i["why"] else ""))
+                st.markdown(f"{STATUS_ICON[i['status']]} {i['title']}")
+                st.caption(f"{i['minutes']} min" + (" · optional" if i["optional"] else "") + (f" · {i['why']}" if i["why"] else ""))
 
 
 preview_key = f"week_preview_{start}"
@@ -72,10 +77,9 @@ kept = [t for t in saved if t.status != "todo"]  # history: re-planning never to
 
 buttons = st.container(horizontal=True)
 if buttons.button("✨ Re-plan (keeps finished tasks)" if saved else "✨ Plan this week"):
-    milestones = [MilestoneIn.model_validate(m, from_attributes=True) for m in goal.milestones]
     try:
         with st.spinner("NorthStar is planning your week…"):
-            plan = plan_week(profile, goal.title, milestones, start, today, busy_minutes(saved))
+            plan = run("plan_week", student_id, start, today)
     except ScheduleError as e:
         st.error(f"{e}. Please try again.")
     except Exception as e:  # network / API key problems

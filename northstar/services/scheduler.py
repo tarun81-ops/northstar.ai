@@ -19,10 +19,11 @@ def week_days(start: date) -> list[date]:
     return [start + timedelta(days=i) for i in range(7)]
 
 
-def capacity(profile: ProfileIn, start: date, today: date, busy: dict[date, int] | None = None) -> dict[date, int]:
+def capacity(profile: ProfileIn, start: date, today: date, busy: dict[date, int] | None = None,
+             load_factor: float = 1.0) -> dict[date, int]:
     """Minutes NorthStar may plan on each day of the week starting `start`:
-    free time - that day's activities - 20% rest buffer - minutes already `busy` (e.g. finished tasks), rounded down to 5.
-    Days before today get 0."""
+    (free time - that day's activities) x 80% (rest buffer) x load_factor (an accepted "lighten load"), rounded down to 5,
+    minus minutes already `busy` (finished tasks count against the day's limit). Days before today get 0."""
     busy = busy or {}
     activity_minutes = Counter()
     for a in profile.activities:
@@ -32,7 +33,7 @@ def capacity(profile: ProfileIn, start: date, today: date, busy: dict[date, int]
     for d in week_days(start):
         name = DAYS[d.weekday()]
         free = profile.weekly_availability.get(name, DayAvailability()).free_minutes - activity_minutes[name]
-        usable = int(max(free, 0) * (1 - REST_BUFFER)) // 5 * 5
+        usable = int(max(free, 0) * (1 - REST_BUFFER) * load_factor) // 5 * 5
         cap[d] = 0 if d < today else max(usable - busy.get(d, 0), 0)
     return cap
 

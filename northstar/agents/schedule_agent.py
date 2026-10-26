@@ -12,6 +12,7 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from northstar.llm import get_llm
 from northstar.prompts import system_prompt
 from northstar.schemas import Exam, MilestoneIn, ProfileIn, TaskDraft, TaskDraftList
+from northstar.services.review import EASIER_MAX_DIFFICULTY, Adjustments
 from northstar.services.scheduler import capacity, exams_soon, place
 
 REQUIRED_SHARE = 0.8  # non-optional work may use at most 80% of the week's capacity
@@ -30,9 +31,19 @@ class WeekPlan:
     exams: list[Exam]
 
 
-def check_drafts(drafts: list[TaskDraft], cap: dict[date, int], milestone_ids: set[int]) -> list[str]:
-    """Problems with the agent's tasks, in plain words (empty = OK)."""
+def check_drafts(drafts: list[TaskDraft], cap: dict[date, int], milestone_ids: set[int],
+                 adjust: Adjustments | None = None) -> list[str]:
+    """Problems with the agent's tasks, in plain words (empty = OK). Accepted plan changes are enforced here."""
+    adjust = adjust or Adjustments()
     problems = []
+    if adjust.max_minutes:
+        long = [t.title for t in drafts if t.duration_minutes > adjust.max_minutes]
+        if long:
+            problems.append(f"the student asked for tasks of at most {adjust.max_minutes} minutes; shorten or split: {', '.join(long)}")
+    hard = [t.title for t in drafts if t.category in adjust.easier and t.difficulty > EASIER_MAX_DIFFICULTY]
+    if hard:
+        problems.append(f"the student asked for easier steps in {', '.join(sorted(adjust.easier))}: "
+                        f"difficulty must be {EASIER_MAX_DIFFICULTY} or less for: {', '.join(hard)}")
     if not drafts:
         problems.append("there are no tasks")
     unknown = {t.milestone_id for t in drafts} - milestone_ids - {None}
@@ -50,8 +61,9 @@ def check_drafts(drafts: list[TaskDraft], cap: dict[date, int], milestone_ids: s
 
 
 def plan_week(profile: ProfileIn, goal_title: str, milestones: list[MilestoneIn], start: date, today: date,
-              busy: dict[date, int] | None = None) -> WeekPlan:
-    cap = capacity(profile, start, today, busy)
+              busy: dict[date, int] | None = None, adjust: Adjustments | None = None) -> WeekPlan:
+    adjust = adjust or Adjustments()
+    cap = capacity(profile, start, today, busy, adjust.load_factor)
     exams = exams_soon(profile, start)
     if sum(cap.values()) == 0:
         return WeekPlan([], [], cap, exams)  # no free time left this week: nothing to plan
@@ -65,6 +77,7 @@ def plan_week(profile: ProfileIn, goal_title: str, milestones: list[MilestoneIn]
         "minutes_available_per_day": {f"{d:%a %d %b}": m for d, m in cap.items()},
         "required_minutes_budget": int(sum(cap.values()) * REQUIRED_SHARE),
         "exams_coming_up": [e.model_dump(mode="json") for e in exams],
+        "changes_the_student_accepted": adjust.notes,
         "student": profile.model_dump(mode="json", exclude={"alias", "weekly_availability", "activities"}),
     }
     messages = [
@@ -75,7 +88,7 @@ def plan_week(profile: ProfileIn, goal_title: str, milestones: list[MilestoneIn]
 
     for _ in range(2):  # first try + one fix
         result = llm.invoke(messages)
-        problems = check_drafts(result.tasks, cap, {m.id for m in current})
+        problems = check_drafts(result.tasks, cap, {m.id for m in current}, adjust)
         if not problems:
             placed, overflow = place(result.tasks, cap)
             return WeekPlan(placed, overflow, cap, exams)

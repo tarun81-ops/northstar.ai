@@ -18,5 +18,6 @@ Rules:
 - Exam mode (exams listed): revision for those subjects comes first and is required; most other work becomes optional and lighter.
 - Break hard topics (the student's challenges) into short steps with lower difficulty. Use their strengths for confidence.
 - Match how they like to learn (practice problems, projects, videos...).
+- Follow every change the student accepted (lighter load, shorter tasks, easier steps, harder challenge, deeper project). The minutes you receive already include a lighter load.
 - Prefer 4-10 tasks for a normal week. Fewer, achievable tasks beat a long list.
 - Practice and preparation only - never "write the graded essay/assignment".

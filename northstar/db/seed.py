@@ -56,7 +56,7 @@ def demo_profile(today: date | None = None) -> ProfileIn:
 def _outcome(kind: str, i: int, category: str, minutes: int) -> dict:
     """What the check-in for task i looks like in each kind of week."""
     if kind == "good":
-        return dict(completed="yes", time_spent_minutes=minutes - 5, difficulty_rating="too_easy" if i % 2 else "just_right",
+        return dict(completed="yes", time_spent_minutes=minutes - 5, difficulty_rating="too_easy" if i % 3 else "just_right",
                     enjoyment=5 if category == "technical" else 4, stress=2, confidence=4)
     if kind == "bad":
         if i in (0, 6):

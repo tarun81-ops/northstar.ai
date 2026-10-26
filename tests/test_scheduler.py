@@ -34,6 +34,12 @@ def test_capacity_past_days_and_busy_minutes():
     assert cap[WED] == 45 and cap[SAT] == 0  # busy time removed, never negative
 
 
+def test_lighter_load_counts_finished_work_against_the_smaller_limit():
+    # Monday: 120 free x 0.8 x 0.65 = 62 -> 60, minus 40 already done = 20 (not (95 - 40) x 0.65 = 35)
+    cap = capacity(demo_profile(), START, today=START, busy={MON: 40}, load_factor=0.65)
+    assert cap[MON] == 20 and cap[SUN] == 90
+
+
 def test_week_start_and_exam_mode():
     assert week_start(date(2026, 11, 5)) == START
     profile = demo_profile().model_copy(update={"exams": [

@@ -116,6 +116,25 @@ class CheckIn(BaseModel):
     evidence_url: AnyHttpUrl | None = None  # a link the student chooses to share (photo, repo, doc)
 
 
+ChangeKind = Literal["lighten_load", "shorter_tasks", "easier_steps", "harder_challenge", "deeper_project"]
+
+
+class ProposedChange(BaseModel):
+    """A change to how future weeks are planned. The menu of kinds is fixed: the AI can't invent new powers."""
+
+    kind: ChangeKind
+    category: Category | None = Field(None, description="Required for easier_steps, harder_challenge and deeper_project")
+    amount: int | None = Field(None, description="lighten_load: percent 10-40. shorter_tasks: max minutes per task 15-60")
+    reason: LongText = Field(description="One sentence, based on the data, kind")
+
+
+class WeeklyReviewOut(BaseModel):
+    win: LongText = Field(description="One genuine win from the week")
+    what_the_data_shows: LongText = Field(description="2-3 sentences, no blame")
+    changes: list[ProposedChange] = Field(description="At most 3. Empty if the week went well and nothing needs changing")
+    question: LongText = Field(description="One reflective question for the student")
+
+
 class MilestoneIn(MilestoneDraft):
     """A milestone the student edits/confirms. id=None means new."""
 

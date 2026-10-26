@@ -1,5 +1,8 @@
-"""Daily check-ins: write progress logs and keep each task's status in step with them."""
+"""Daily check-ins: write progress logs and keep each task's status in step with them.
+Also summarises a week of check-ins (plain numbers the Progress Agent and pattern detection read)."""
+from collections import Counter
 from datetime import date
+from statistics import mean
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -51,6 +54,52 @@ def undo_checkin(session: Session, student_id: int, task_id: int, day: date) -> 
         session.delete(log)
     task.status = "todo"
     session.commit()
+
+
+def _avg(values: list[int]) -> float | None:
+    return round(mean(values), 1) if values else None
+
+
+def summarize(tasks: list[Task], logs: list[ProgressLog]) -> dict:
+    """One week in numbers. Pure function: easy to test and safe to show the LLM (no names, no free-form IDs)."""
+    log_for = {log.task_id: log for log in logs}
+    status = Counter(t.status for t in tasks)
+    checked = [t for t in tasks if t.id in log_for]
+    ratings = [log.difficulty_rating for log in logs if log.difficulty_rating]
+
+    by_category = {}
+    for t in tasks:
+        c = by_category.setdefault(t.category, {"planned": 0, "done": 0, "partial": 0, "skipped": 0, "enjoyment": []})
+        c["planned"] += 1
+        if t.status in c:
+            c[t.status] += 1
+        if t.id in log_for and log_for[t.id].enjoyment:
+            c["enjoyment"].append(log_for[t.id].enjoyment)
+
+    planned = len(tasks)
+    return {
+        "tasks_planned": planned,
+        "done": status["done"], "partial": status["partial"], "skipped": status["skipped"], "not_checked_in": status["todo"],
+        "completion_rate": round((status["done"] + 0.5 * status["partial"]) / planned, 2) if planned else 0.0,
+        "planned_minutes": sum(t.duration_minutes for t in tasks),
+        "planned_minutes_checked_in": sum(t.duration_minutes for t in checked),
+        "actual_minutes": sum(log.time_spent_minutes for log in logs),
+        "difficulty": dict(Counter(ratings)),
+        "struggled": sum(log.difficulty_rating == "too_hard" or log.completed == "partial" for log in logs),
+        "avg_stress": _avg([log.stress for log in logs if log.stress]),
+        "avg_enjoyment": _avg([log.enjoyment for log in logs if log.enjoyment]),
+        "enjoyment_by_day": [log.enjoyment for log in sorted(logs, key=lambda l: l.date) if log.enjoyment],
+        "by_category": {cat: {k: v for k, v in c.items() if k != "enjoyment"} | {"avg_enjoyment": _avg(c["enjoyment"]),
+                                                                             "rated": len(c["enjoyment"])}
+                        for cat, c in by_category.items()},
+        "blockers": [log.blockers for log in logs if log.blockers],
+    }
+
+
+def week_summary(session: Session, student_id: int, start: date) -> dict:
+    tasks = list(session.scalars(select(Task).where(Task.student_id == student_id, Task.week_start == start)))
+    logs = list(session.scalars(select(ProgressLog).where(ProgressLog.task_id.in_([t.id for t in tasks])))) if tasks else []
+    return summarize(tasks, logs)
 
 
 def encouragement(checkins: list[CheckIn]) -> str:
