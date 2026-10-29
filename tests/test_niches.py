@@ -154,7 +154,7 @@ def test_suggest_niches_through_the_graph(engine, session, sid, monkeypatch):
     bad = NicheList(niches=[niche("Robot path-finding", [999]), niche("Sports data", [real]), niche("Game physics", [real])])
     good = NicheList(niches=[niche("Robot path-finding", [real]), niche("Sports data", [real]), niche("Game physics", [real])])
     fake = FakeLLM(bad, good)
-    monkeypatch.setattr(niche_agent, "get_llm", lambda: fake)
+    monkeypatch.setattr(niche_agent, "get_llm", lambda *args, **kwargs: fake)
 
     assert graph.run("suggest_niches", sid) == 3
     assert "don't exist: [999]" in fake.calls[1][-1].content  # the made-up id was sent back to be fixed

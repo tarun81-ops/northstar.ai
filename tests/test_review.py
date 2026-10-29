@@ -164,7 +164,7 @@ def test_review_accept_then_replan_through_the_graph(engine, session, sid, monke
 
     # 1. review: patterns found in Python, the (fake) LLM proposes lightening the load
     reviewer = FakeLLM(review(ProposedChange(kind="lighten_load", amount=30, reason="Stress averaged 4.4/5.")))
-    monkeypatch.setattr(progress_agent, "get_llm", lambda: reviewer)
+    monkeypatch.setattr(progress_agent, "get_llm", lambda *args, **kwargs: reviewer)
     graph.run("weekly_review", sid, WEEK)
     saved_review, changes = get_review(session, sid, WEEK)
     assert {p["name"] for p in saved_review.patterns} >= {"overloaded", "too_hard"}
@@ -174,7 +174,7 @@ def test_review_accept_then_replan_through_the_graph(engine, session, sid, monke
     # 2. before accepting, next week is planned at full capacity
     planner = FakeLLM(*[TaskDraftList(tasks=[TaskDraft(title="Revise algebra", category="academics",
                                                        duration_minutes=30, difficulty=2)])] * 2)
-    monkeypatch.setattr(schedule_agent, "get_llm", lambda: planner)
+    monkeypatch.setattr(schedule_agent, "get_llm", lambda *args, **kwargs: planner)
     full = graph.run("plan_week", sid, NEXT, today=NEXT)
 
     # 3. the student accepts -> the next plan has 30% less time, and the agent is told why

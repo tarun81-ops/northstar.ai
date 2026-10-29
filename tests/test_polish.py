@@ -3,7 +3,6 @@ from datetime import date, timedelta
 from sqlalchemy import func, select
 from sqlalchemy.orm import sessionmaker
 
-from northstar import config
 from northstar.db import seed
 from northstar.db.models import Milestone, ProgressLog, Student, Task
 from northstar.db.session import make_engine
@@ -16,16 +15,13 @@ TUE = MON + timedelta(days=1)
 
 
 def test_ai_problem_names_the_missing_key(monkeypatch):
-    monkeypatch.setattr(config, "MODEL", "openai:gpt-6-luna")
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    assert "OPENAI_API_KEY" in ai_problem()
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-direct-openai-key")
+    monkeypatch.setenv("GOOGLE_API_KEY", "test-direct-gemini-key")
+    assert "OPENROUTER_API_KEY" in ai_problem()
 
-    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-openrouter-key")
     assert ai_problem() is None
-
-    monkeypatch.setattr(config, "MODEL", "google_genai:gemini-2.5-flash")
-    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
-    assert "GOOGLE_API_KEY" in ai_problem()
 
 
 def test_later_milestone_tasks_never_come_before_earlier_ones():

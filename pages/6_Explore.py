@@ -14,6 +14,7 @@ from northstar.services.niches import (
     set_step, start_experiment, stop_experiment, suggestions,
 )
 from northstar.services.profile import demo_student_id, get_profile
+from northstar.ui.model_selector import render_model_selector
 
 SOURCE = {"profile": "from your profile", "checkins": "from your check-ins", "student": "you said", "experiment": "from an experiment"}
 SCALE = {1: "1 · not at all", 2: "2", 3: "3 · somewhat", 4: "4", 5: "5 · a lot"}
@@ -25,6 +26,7 @@ QUESTIONS = {
 }
 
 st.set_page_config(page_title="Explore · NorthStar", page_icon="⭐", layout="wide")
+render_model_selector(required_capabilities={"structured_output"})
 init_db()
 today = date.today()
 

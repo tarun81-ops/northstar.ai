@@ -8,7 +8,7 @@ from datetime import date
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
-from northstar.llm import get_llm
+from northstar.ai.model_router import get_llm
 from northstar.prompts import system_prompt
 from northstar.schemas import GoalIn, MilestoneDraft, MilestoneList, ProfileIn
 from northstar.services.goals import check_milestones
@@ -31,7 +31,10 @@ def generate_milestones(profile: ProfileIn, goal: GoalIn, today: date | None = N
         SystemMessage(system_prompt("roadmap")),
         HumanMessage("Create the milestones for this goal.\n" + json.dumps(facts, indent=1)),
     ]
-    llm = get_llm().with_structured_output(MilestoneList)
+    llm = get_llm(
+        "planning",
+        required_capabilities={"structured_output"},
+    ).with_structured_output(MilestoneList)
 
     for _ in range(2):  # first try + one fix
         result = llm.invoke(messages)

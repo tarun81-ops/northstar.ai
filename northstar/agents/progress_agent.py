@@ -7,7 +7,7 @@ import json
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
-from northstar.llm import get_llm
+from northstar.ai.model_router import get_llm
 from northstar.prompts import system_prompt
 from northstar.schemas import WeeklyReviewOut
 from northstar.services.patterns import Pattern
@@ -24,7 +24,10 @@ def write_review(summary: dict, patterns: list[Pattern], goal_title: str | None)
         SystemMessage(system_prompt("progress")),
         HumanMessage("Write this week's review.\n" + json.dumps(facts, indent=1)),
     ]
-    llm = get_llm().with_structured_output(WeeklyReviewOut)
+    llm = get_llm(
+        "research_analysis",
+        required_capabilities={"structured_output"},
+    ).with_structured_output(WeeklyReviewOut)
 
     for _ in range(2):  # first try + one fix
         review = llm.invoke(messages)

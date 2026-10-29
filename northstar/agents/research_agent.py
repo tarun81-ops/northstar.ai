@@ -9,7 +9,7 @@ import re
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from northstar.db.models import ResearchProject
-from northstar.llm import get_llm
+from northstar.ai.model_router import get_llm
 from northstar.prompts import system_prompt
 from northstar.schemas import CoachReply, ProfileIn
 from northstar.services.research import CITATION, ETHICS, LINK, STEP_GUIDE
@@ -49,7 +49,10 @@ def coach_step(profile: ProfileIn, project: ResearchProject, step_key: str) -> C
         SystemMessage(system_prompt("research")),
         HumanMessage("Coach this step.\n" + json.dumps(facts, indent=1)),
     ]
-    llm = get_llm().with_structured_output(CoachReply)
+    llm = get_llm(
+        "research_analysis",
+        required_capabilities={"structured_output"},
+    ).with_structured_output(CoachReply)
     numbers = {s.number for s in project.sources}
 
     for _ in range(2):  # first try + one fix

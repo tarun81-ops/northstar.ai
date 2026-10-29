@@ -13,8 +13,10 @@ from northstar.services.opportunities import (
     AGE_RANGE, by_key, decide, dismissed_keys, eligible, load_opportunities, permission_note, recommendations,
 )
 from northstar.services.profile import demo_student_id, get_profile
+from northstar.ui.model_selector import render_model_selector
 
 st.set_page_config(page_title="Opportunities · NorthStar", page_icon="⭐", layout="wide")
+render_model_selector(required_capabilities={"structured_output"})
 init_db()
 today = date.today()
 

@@ -13,6 +13,7 @@ from northstar.services.profile import demo_student_id
 from northstar.services.progress import week_summary
 from northstar.services.review import decide_change, describe, get_review
 from northstar.services.scheduler import week_start
+from northstar.ui.model_selector import render_model_selector
 
 PATTERN_LABEL = {
     "too_easy": "🚀 Feeling easy", "too_hard": "🧗 Feeling hard", "skipping_subject": "⏭️ Skipped often",
@@ -22,6 +23,7 @@ PATTERN_LABEL = {
 DECIDED = {"applied": "✅ Accepted - used next time you plan a week", "dismissed": "✖️ Dismissed"}
 
 st.set_page_config(page_title="Weekly Review · NorthStar", page_icon="⭐", layout="wide")
+render_model_selector(required_capabilities={"structured_output"})
 init_db()
 today = date.today()
 

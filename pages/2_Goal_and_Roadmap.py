@@ -11,8 +11,10 @@ from northstar.llm import ai_problem
 from northstar.schemas import CATEGORIES, GoalIn, MilestoneIn
 from northstar.services.goals import archive_goal, create_goal, get_active_goal, save_milestones
 from northstar.services.profile import demo_student_id, get_profile
+from northstar.ui.model_selector import render_model_selector
 
 st.set_page_config(page_title="Goal & Roadmap · NorthStar", page_icon="⭐", layout="wide")
+render_model_selector(required_capabilities={"structured_output"})
 init_db()
 
 with get_session() as s:

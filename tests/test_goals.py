@@ -100,7 +100,7 @@ def test_generate_retries_once_with_the_problems(monkeypatch):
     bad = MilestoneList(milestones=[MilestoneDraft(**ms(d)) for d in (40, 10, 20, 30)])  # out of order
     good = MilestoneList(milestones=[MilestoneDraft(**ms(d)) for d in (10, 20, 30, 40)])
     fake = FakeLLM(bad, good)
-    monkeypatch.setattr(roadmap_agent, "get_llm", lambda: fake)
+    monkeypatch.setattr(roadmap_agent, "get_llm", lambda *args, **kwargs: fake)
 
     assert roadmap_agent.generate_milestones(demo_profile(), GOAL) == good.milestones
     assert "ascending" in fake.calls[1][-1].content  # the fix request told the model what was wrong
@@ -109,6 +109,6 @@ def test_generate_retries_once_with_the_problems(monkeypatch):
 
 def test_generate_gives_up_after_one_retry(monkeypatch):
     bad = MilestoneList(milestones=[MilestoneDraft(**ms(10))])
-    monkeypatch.setattr(roadmap_agent, "get_llm", lambda: FakeLLM(bad, bad))
+    monkeypatch.setattr(roadmap_agent, "get_llm", lambda *args, **kwargs: FakeLLM(bad, bad))
     with pytest.raises(roadmap_agent.RoadmapError, match="need 4-8"):
         roadmap_agent.generate_milestones(demo_profile(), GOAL)

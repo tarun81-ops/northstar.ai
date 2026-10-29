@@ -1,9 +1,11 @@
 """Research Studio: a guided 8-step mini-project. The student writes; the coach asks; sources are real and stored."""
 from datetime import date
 
+import pandas as pd
 import streamlit as st
 from pydantic import ValidationError
 
+from northstar.ai.tool_output_utils import dataset_summary_text
 from northstar.agents.research_agent import CoachError
 from northstar.db.models import DatasetRecommendation, ImportedDataset, KaggleDataset
 from northstar.db.session import get_session, init_db
@@ -24,8 +26,10 @@ from northstar.services.research import (
     finish_project, past_projects, remove_source, save_step, set_artifact, set_ethics, start_project,
     suggest_library_sources, update_source,
 )
+from northstar.ui.model_selector import render_model_selector
 
 st.set_page_config(page_title="Research Studio · NorthStar", page_icon="⭐", layout="wide")
+render_model_selector(required_capabilities={"structured_output"})
 init_db()
 today = date.today()
 
@@ -340,6 +344,13 @@ if section == "data":
                             st.dataframe(pd.DataFrame(col_info), use_container_width=True)
 
                         st.caption("📝 **Tip:** Copy key numbers or findings above into your **Analysis** step notes (Step 6)!")
+
+                        # Compact, LLM-safe dataset summary - never raw CSV contents.
+                        if eda.head_records:
+                            preview_df = pd.DataFrame(eda.head_records)
+                            summary_text = dataset_summary_text(preview_df, max_chars=1500)
+                            with st.expander("📊 Dataset summary (compact)", expanded=False):
+                                st.text(summary_text)
 
     # ---- Recommendations Cards Section ----
     if recs_data:

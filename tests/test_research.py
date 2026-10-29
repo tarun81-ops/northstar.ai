@@ -161,7 +161,7 @@ def test_coach_step_through_the_graph(engine, session, sid, pid, monkeypatch):
     question = step(session, sid, pid, "question")
     save_step(session, sid, question.id, "Do games use real gravity?", done=False)
     fake = FakeLLM(reply(feedback="Try www.example.com"), reply())
-    monkeypatch.setattr(research_agent, "get_llm", lambda: fake)
+    monkeypatch.setattr(research_agent, "get_llm", lambda *args, **kwargs: fake)
 
     graph.run("coach_step", sid, project_id=pid, step_id=question.id)
     assert "don't include any links" in fake.calls[1][-1].content

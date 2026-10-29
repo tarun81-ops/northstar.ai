@@ -12,10 +12,12 @@ from northstar.services.profile import demo_student_id, get_profile
 from northstar.services.review import adjustments_for_week
 from northstar.services.scheduler import capacity, exams_soon, week_days, week_start
 from northstar.services.tasks import get_week_tasks, save_week
+from northstar.ui.model_selector import render_model_selector
 
 STATUS_ICON = {"todo": "⬜", "done": "✅", "partial": "🌓", "skipped": "⏭️"}
 
 st.set_page_config(page_title="This Week · NorthStar", page_icon="⭐", layout="wide")
+render_model_selector(required_capabilities={"structured_output"})
 init_db()
 today = date.today()
 

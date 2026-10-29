@@ -408,7 +408,7 @@ def test_dataset_agent_retry_and_success(session, monkeypatch):
         DatasetMatchList(matches=[DatasetMatch(kaggle_ref="invalid/hallucinated-ref", match_reason="Bad")]),
         DatasetMatchList(matches=[DatasetMatch(kaggle_ref=valid_ref, match_reason="Legitimate match")]),
     )
-    monkeypatch.setattr(dataset_agent, "get_llm", lambda: fake_llm)
+    monkeypatch.setattr(dataset_agent, "get_llm", lambda *args, **kwargs: fake_llm)
 
     results = dataset_agent.match_datasets(
         project_title="Student Focus",
@@ -433,7 +433,7 @@ def test_dataset_agent_fallback_on_failure(session, monkeypatch):
 
     # LLM always raises or returns invalid
     fake_llm = FakeDatasetLLM()  # will raise on invoke
-    monkeypatch.setattr(dataset_agent, "get_llm", lambda: fake_llm)
+    monkeypatch.setattr(dataset_agent, "get_llm", lambda *args, **kwargs: fake_llm)
 
     results = dataset_agent.match_datasets(
         project_title="Student Focus",
@@ -460,7 +460,7 @@ def test_recommend_datasets_through_langgraph(engine, session, sid, pid, monkeyp
     fake_llm = FakeDatasetLLM(
         DatasetMatchList(matches=[DatasetMatch(kaggle_ref=target_ref, match_reason="Recommended via LangGraph")]),
     )
-    monkeypatch.setattr(dataset_agent, "get_llm", lambda: fake_llm)
+    monkeypatch.setattr(dataset_agent, "get_llm", lambda *args, **kwargs: fake_llm)
     monkeypatch.setattr(graph, "get_session", sessionmaker(engine))
 
     result_count = graph.run("recommend_datasets", sid, project_id=pid)

@@ -9,7 +9,9 @@ from datetime import date
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
-from northstar.llm import get_llm
+from northstar.ai.context_manager import estimate_prompt_tokens, should_compact
+from northstar.ai import llm_config
+from northstar.ai.model_router import get_llm
 from northstar.prompts import system_prompt
 from northstar.schemas import Exam, MilestoneIn, ProfileIn, TaskDraft, TaskDraftList
 from northstar.services.review import EASIER_MAX_DIFFICULTY, Adjustments
@@ -17,6 +19,37 @@ from northstar.services.scheduler import capacity, exams_soon, place
 
 REQUIRED_SHARE = 0.8  # non-optional work may use at most 80% of the week's capacity
 CURRENT_MILESTONES = 2  # plan for the next two unfinished milestones
+
+
+def _compact_facts(facts: dict) -> dict:
+    """Return a reduced-detail copy of ``facts`` for large-prompt compaction.
+
+    Keeps all fields the scheduler needs (goal, milestones, capacity, budget,
+    exams, accepted changes) but shortens verbose text fields so the prompt
+    stays under the context window.
+    """
+    compacted = dict(facts)
+
+    # Shorten milestone descriptions and completion criteria.
+    if "current_milestones" in compacted:
+        short_milestones = []
+        for m in compacted["current_milestones"]:
+            short_m = dict(m)
+            if "description" in short_m and len(short_m["description"]) > 120:
+                short_m["description"] = short_m["description"][:117] + "..."
+            if "completion_criteria" in short_m and len(short_m["completion_criteria"]) > 160:
+                short_m["completion_criteria"] = short_m["completion_criteria"][:157] + "..."
+            short_milestones.append(short_m)
+        compacted["current_milestones"] = short_milestones
+
+    # Drop verbose student fields that aren't needed for task planning.
+    if "student" in compacted and isinstance(compacted["student"], dict):
+        short_student = dict(compacted["student"])
+        short_student.pop("learning_preferences", None)
+        short_student.pop("exams", None)
+        compacted["student"] = short_student
+
+    return compacted
 
 
 class ScheduleError(Exception):
@@ -84,7 +117,24 @@ def plan_week(profile: ProfileIn, goal_title: str, milestones: list[MilestoneIn]
         SystemMessage(system_prompt("schedule")),
         HumanMessage("Propose this week's tasks.\n" + json.dumps(facts, indent=1)),
     ]
-    llm = get_llm().with_structured_output(TaskDraftList)
+
+    # Automatic compaction: if the prompt is too large, reduce fact detail.
+    if should_compact(messages):
+        logger.info(
+            "plan_week: prompt estimated %d tokens (> %d threshold); compacting facts",
+            estimate_prompt_tokens(messages),
+            llm_config.context_compact_threshold(),
+        )
+        facts = _compact_facts(facts)
+        messages = [
+            SystemMessage(system_prompt("schedule")),
+            HumanMessage("Propose this week's tasks.\n" + json.dumps(facts, indent=1)),
+        ]
+
+    llm = get_llm(
+        "planning",
+        required_capabilities={"structured_output"},
+    ).with_structured_output(TaskDraftList)
 
     for _ in range(2):  # first try + one fix
         result = llm.invoke(messages)

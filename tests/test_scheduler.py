@@ -142,7 +142,7 @@ def test_plan_week_retries_on_bad_milestone_and_places_tasks(monkeypatch):
     bad = TaskDraftList(tasks=[task(30, milestone_id=99)])
     good = TaskDraftList(tasks=[task(40, "Algebra baseline quiz", milestone_id=2), task(45, "Build chassis", "technical", milestone_id=3)])
     fake = FakeLLM(bad, good)
-    monkeypatch.setattr(schedule_agent, "get_llm", lambda: fake)
+    monkeypatch.setattr(schedule_agent, "get_llm", lambda *args, **kwargs: fake)
 
     plan = schedule_agent.plan_week(demo_profile(), "Maths + robot", MILESTONES, START, today=START)
     assert [t.title for _, t in plan.placed] == ["Algebra baseline quiz", "Build chassis"]
@@ -157,6 +157,6 @@ def test_check_drafts_enforces_required_budget():
 
 
 def test_no_free_time_means_no_ai_call(monkeypatch):
-    monkeypatch.setattr(schedule_agent, "get_llm", lambda: FakeLLM())  # would fail if called
+    monkeypatch.setattr(schedule_agent, "get_llm", lambda *args, **kwargs: FakeLLM())  # would fail if called
     plan = schedule_agent.plan_week(demo_profile(), "Goal", MILESTONES, START, today=START + timedelta(days=7))
     assert plan.placed == [] and sum(plan.capacity.values()) == 0

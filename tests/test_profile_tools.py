@@ -64,3 +64,21 @@ def test_llm_cannot_choose_the_student(session_factory):
     tools, _ = make_profile_tools(session_factory=session_factory)
     for t in tools:
         assert "student_id" not in t.args
+
+
+def test_replayed_profile_update_does_not_repeat_database_write(session_factory, monkeypatch):
+    with session_factory() as s:
+        sid = save_profile(s, demo_profile())
+    (_, _, update), _ = make_profile_tools(sid, session_factory)
+    original_save = save_profile
+    saves = []
+
+    def counted_save(session, profile, student_id=None):
+        saves.append(student_id)
+        return original_save(session, profile, student_id)
+
+    monkeypatch.setattr("northstar.tools.profile_tools.save_profile", counted_save)
+    update.invoke({"interests": ["Art", "Astronomy"]})
+    update.invoke({"interests": ["Art", "Astronomy"]})
+
+    assert saves == [sid]

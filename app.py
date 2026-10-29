@@ -15,8 +15,10 @@ from northstar.services.profile import demo_student_id, get_profile
 from northstar.services.progress import log_checkin, tasks_for_day, undo_checkin, week_summary
 from northstar.services.review import adjustments_for_week, latest_review
 from northstar.services.scheduler import exams_soon, week_start
+from northstar.ui.model_selector import render_model_selector
 
 st.set_page_config(page_title="NorthStar", page_icon="⭐")
+render_model_selector()
 init_db()
 today = date.today()
 monday = week_start(today)

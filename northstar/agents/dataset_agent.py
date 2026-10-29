@@ -11,14 +11,20 @@ Flow:
 from __future__ import annotations
 
 import json
+import logging
 from typing import Sequence
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
+from northstar.ai.context_manager import estimate_prompt_tokens, should_compact
+from northstar.ai.model_router import get_llm
+from northstar.ai.tool_output_utils import truncate_text
+from northstar.ai import llm_config as _llm_config
 from northstar.db.models import KaggleDataset
-from northstar.llm import get_llm
 from northstar.prompts import system_prompt
 from northstar.schemas import DatasetMatch, DatasetMatchList
+
+logger = logging.getLogger(__name__)
 
 
 def check_dataset_matches(matches: list[DatasetMatch], valid_refs: set[str]) -> list[str]:
@@ -71,12 +77,12 @@ def match_datasets(
         "candidates": [
             {
                 "kaggle_ref": d.kaggle_ref,
-                "title": d.title,
-                "description": d.description,
-                "niche_tags": d.niche_tags,
+                "title": truncate_text(d.title, max_chars=120),
+                "description": truncate_text(d.description, max_chars=300),
+                "niche_tags": d.niche_tags[:5],
                 "difficulty": d.difficulty,
-                "sample_questions": d.sample_questions,
-                "limitations": d.limitations,
+                "sample_questions": d.sample_questions[:3],
+                "limitations": d.limitations[:3],
             }
             for d in candidates
         ],
@@ -90,7 +96,31 @@ def match_datasets(
         ),
     ]
 
-    llm = get_llm().with_structured_output(DatasetMatchList)
+    # Automatic compaction: if the prompt is too large, reduce candidate count/detail.
+    if should_compact(messages):
+        logger.info(
+            "match_datasets: prompt estimated %d tokens (> %d threshold); reducing candidates",
+            estimate_prompt_tokens(messages),
+            _llm_config.context_compact_threshold(),
+        )
+        # Keep only the top candidates with minimal detail.
+        facts["candidates"] = facts["candidates"][:3]
+        for c in facts["candidates"]:
+            c["description"] = truncate_text(c.get("description", ""), max_chars=100)
+            c["sample_questions"] = c.get("sample_questions", [])[:1]
+            c["limitations"] = c.get("limitations", [])[:1]
+        messages = [
+            SystemMessage(system_prompt("dataset")),
+            HumanMessage(
+                "Select the best-fitting datasets for this student's project:\n"
+                + json.dumps(facts, indent=1)
+            ),
+        ]
+
+    llm = get_llm(
+        "research_analysis",
+        required_capabilities={"structured_output"},
+    ).with_structured_output(DatasetMatchList)
 
     for attempt in range(2):  # First try + 1 retry
         try:

@@ -127,7 +127,7 @@ def test_match_through_the_graph(engine, session, sid, monkeypatch):
 
     fake = FakeLLM(OpportunityMatchList(matches=[OpportunityMatch(key="too-old", why="x")]),
                    OpportunityMatchList(matches=[OpportunityMatch(key="robot-league", why="You love building robots.")]))
-    monkeypatch.setattr(opportunity_agent, "get_llm", lambda: fake)
+    monkeypatch.setattr(opportunity_agent, "get_llm", lambda *args, **kwargs: fake)
 
     assert graph.run("match_opportunities", sid, today=TODAY) == 1
     sent = fake.calls[0][1].content
@@ -142,5 +142,5 @@ def test_match_through_the_graph(engine, session, sid, monkeypatch):
 def test_no_matching_candidates_means_no_ai_call(engine, sid, monkeypatch):
     monkeypatch.setattr(graph, "get_session", sessionmaker(engine))
     monkeypatch.setattr(graph, "load_opportunities", lambda: [opp("art-prize", tags=("painting",))])
-    monkeypatch.setattr(opportunity_agent, "get_llm", lambda: FakeLLM())  # would fail if called
+    monkeypatch.setattr(opportunity_agent, "get_llm", lambda *args, **kwargs: FakeLLM())  # would fail if called
     assert graph.run("match_opportunities", sid, today=TODAY) == 0

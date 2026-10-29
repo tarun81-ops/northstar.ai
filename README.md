@@ -26,15 +26,14 @@ Open http://localhost:8501.
 
 | Variable | Example | Notes |
 |---|---|---|
-| `NORTHSTAR_MODEL` | `openai:gpt-6-luna` | `provider:model`. Also works with `google_genai:gemini-2.5-flash` or `anthropic:...` |
-| `OPENAI_API_KEY` / `GOOGLE_API_KEY` | `sk-...` | The key for the provider above |
+| `OPENROUTER_API_KEY` | *(secret)* | Server-side credential required for AI features; OpenRouter is the only supported LLM endpoint |
 | `DATABASE_URL` | *(optional)* | Defaults to `data/northstar.db` (SQLite). Use a `postgresql+psycopg://...` URL for Postgres |
 | `KAGGLE_USERNAME` / `KAGGLE_KEY` | *(optional)* | Kaggle API credentials to import curated datasets in Research Studio |
 | `KAGGLE_MAX_DATASET_SIZE_MB` | `50.0` | *(optional)* Maximum size in MB allowed for a downloaded dataset |
 | `KAGGLE_STUDENT_STORAGE_CAP_MB` | `100.0` | *(optional)* Total disk quota in MB per student across project workspaces |
 | `DATASET_WORKSPACE_ROOT` | `data/workspaces` | *(optional)* Storage directory for imported datasets |
 
-Without an API key the app still runs: forms, plans, check-ins and reviews you already have all work, and the AI buttons explain what's missing.
+Without an OpenRouter key the app still runs: forms, plans, check-ins and reviews you already have all work, and AI actions explain what's missing. The key is read from server environment variables or Streamlit secrets and is never saved with chat state. The sidebar offers only the OpenRouter free router and current catalog entries with verified zero pricing. Automatic model fallback is off; users can select another free model and retry without losing chat state.
 
 ---
 

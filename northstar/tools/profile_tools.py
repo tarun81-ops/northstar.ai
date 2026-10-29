@@ -73,6 +73,7 @@ def make_profile_tools(student_id: int | None = None, session_factory=get_sessio
         """Save profile facts the student stated in this conversation. Pass only fields they actually said."""
         changes = ProfileUpdate(**updates).model_dump(mode="json", exclude_unset=True, exclude_none=True)
         data = current()
+        existing_data = dict(data)
         if week := changes.pop("weekly_availability", None):  # merge per day: updating Monday keeps the other days
             data["weekly_availability"] = (data.get("weekly_availability") or {d: DayAvailability().model_dump() for d in DAYS}) | week
         data |= changes
@@ -86,6 +87,15 @@ def make_profile_tools(student_id: int | None = None, session_factory=get_sessio
             state["draft"] = data  # only required fields missing: keep as draft
             return {"saved": False, "draft_updated": True, "still_missing": missing(data)}
 
+        if (
+            state["student_id"] is not None
+            and profile.model_dump(mode="json") == existing_data
+        ):
+            return {
+                "saved": True,
+                "unchanged": True,
+                "still_missing": missing(existing_data),
+            }
         with session_factory() as s:
             state["student_id"] = save_profile(s, profile, state["student_id"])
         state["draft"] = {}
